@@ -74,6 +74,7 @@ export const loans = pgTable("loans", {
   fundedFromAccount: boolean("funded_from_account").notNull().default(false),
   notes: text("notes"),
   idempotencyKey: text("idempotency_key"),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   createdAt: ts("created_at"),
 }, (t) => [
   unique().on(t.id, t.userId),
@@ -207,7 +208,8 @@ export const loanBalances = pgView("loan_balances", {
   currency: currencyEnum("currency"), principalMinor: money("principal_minor"), dueDate: date("due_date"),
   principalPaidMinor: money("principal_paid_minor"), interestPaidMinor: money("interest_paid_minor"),
   outstandingMinor: money("outstanding_minor"),
-  status: text("status", { enum: ["pendiente", "parcial", "liquidado", "vencido"] }),
+  status: text("status", { enum: ["pendiente", "parcial", "liquidado", "vencido", "cancelado"] }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
 }).existing();
 
 export const flowEntries = pgView("flow_entries", {

@@ -25,7 +25,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   const userId = await requireOwner();
   const sp = await searchParams;
   const tab = first(sp.tab) === "pagar" ? "pagar" : "cobrar";
-  const raw = { direction: tab === "pagar" ? "payable" : "receivable", status: first(sp.estado), currency: first(sp.moneda), q: first(sp.q) };
+  const raw = { direction: tab === "pagar" ? "payable" : "receivable", status: first(sp.estado), currency: first(sp.moneda), q: first(sp.q), includeCancelled: first(sp.cancelados) === "1" };
   const parsed = loanFiltersSchema.safeParse(raw);
   const filters = parsed.success ? parsed.data : { direction: raw.direction as "payable" | "receivable" };
   const persona = first(sp.persona);
@@ -124,6 +124,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           <select id="lf-moneda" name="moneda" defaultValue={v("moneda")} className={inputCls}><Options placeholder="Todas" items={CURRENCIES.map((c) => ({ value: c, label: c }))} /></select>
         </Field>
         <Field label="Persona" id="lf-q"><input id="lf-q" name="q" type="search" defaultValue={v("q")} className={inputCls} /></Field>
+        <label className="flex items-center gap-2 text-sm sm:col-span-4">
+          <input type="checkbox" name="cancelados" value="1" defaultChecked={v("cancelados") === "1"} />
+          Incluir préstamos cancelados
+        </label>
         <div className="flex items-end gap-2">
           <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
           <Link href={tabHref(tab)} className="rounded-md border border-border px-4 py-2 text-sm">Limpiar</Link>

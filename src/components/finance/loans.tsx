@@ -3,10 +3,10 @@ import { fmtDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import type { LoanRow, LoanStatus } from "@/server/loans";
 
-export const STATUS_LABEL: Record<LoanStatus, string> = { pendiente: "Pendiente", parcial: "Parcial", liquidado: "Liquidado", vencido: "Vencido" };
+export const STATUS_LABEL: Record<LoanStatus, string> = { pendiente: "Pendiente", parcial: "Parcial", liquidado: "Liquidado", vencido: "Vencido", cancelado: "Cancelado" };
 const STATUS_CLS: Record<LoanStatus, string> = {
   pendiente: "border-border text-muted", parcial: "border-primary text-primary",
-  liquidado: "border-positive text-positive", vencido: "border-negative text-negative",
+  liquidado: "border-positive text-positive", vencido: "border-negative text-negative", cancelado: "border-border text-muted line-through",
 };
 
 export function StatusBadge({ status }: { status: LoanStatus }) {
