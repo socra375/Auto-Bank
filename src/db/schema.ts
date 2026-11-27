@@ -187,6 +187,12 @@ export const assetValuations = pgTable("asset_valuations", {
   index("asset_valuations_latest_idx").on(t.assetId, t.valuedOn.desc(), t.seq.desc()),
 ]);
 
+// Single-owner gate (0004_app_owner.sql). A unique index on (true) allows only one row.
+export const appOwner = pgTable("app_owner", {
+  userId: text("user_id").primaryKey(),
+  createdAt: ts("created_at"),
+});
+
 // Views (defined in 0002_views.sql). Read-only.
 export const accountBalances = pgView("account_balances", {
   accountId: uuid("account_id"), userId: text("user_id"), currency: currencyEnum("currency"),
