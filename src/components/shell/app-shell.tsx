@@ -4,11 +4,12 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_ITEMS, MOBILE_PRIMARY } from "./nav";
 import { NavList } from "./nav-list";
 import { EddieButton } from "./eddie";
+import { signOutAction } from "@/lib/auth/actions";
 
 function Brand({ collapsed }: { collapsed?: boolean }) {
   return (
@@ -45,6 +46,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         <nav aria-label="Principal" className="flex-1 overflow-y-auto px-2 pb-4">
           <NavList collapsed={collapsed} />
         </nav>
+        <form action={signOutAction} className="px-2">
+          <button
+            type="submit"
+            className="flex w-full items-center gap-2 rounded-md p-2 text-sm text-white/75 hover:bg-white/10 hover:text-white"
+          >
+            <LogOut className="size-5 shrink-0" aria-hidden />
+            <span className={cn(collapsed && "sr-only")}>Cerrar sesión</span>
+          </button>
+        </form>
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
@@ -104,6 +114,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <nav aria-label="Menú completo" className="flex-1 overflow-y-auto">
                 <NavList onNavigate={() => setDrawer(false)} />
               </nav>
+              <form action={signOutAction}>
+                <button type="submit" className="flex w-full items-center gap-2 rounded-md p-3 text-sm text-white/75 hover:bg-white/10 hover:text-white">
+                  <LogOut className="size-5" aria-hidden /> Cerrar sesión
+                </button>
+              </form>
             </Dialog.Content>
           </Dialog.Portal>
         </Dialog.Root>
