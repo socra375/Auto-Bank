@@ -140,9 +140,10 @@ export type LoanPaymentInput = z.input<typeof loanPaymentSchema>;
 
 export const loanFiltersSchema = z.object({
   direction: directionSchema.optional(),
-  status: z.enum(["pendiente", "parcial", "liquidado", "vencido"]).optional(),
+  status: z.enum(["pendiente", "parcial", "liquidado", "vencido", "cancelado"]).optional(),
   currency: currencySchema.optional(),
   q: z.string().trim().max(100).optional(),
+  includeCancelled: z.boolean().optional(),
 });
 export type LoanFilters = z.input<typeof loanFiltersSchema>;
 

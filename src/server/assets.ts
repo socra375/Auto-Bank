@@ -274,7 +274,9 @@ async function netWorthAt(q: Query, userId: string, to: string): Promise<Record<
        select l.direction::text as direction, l.currency::text as currency,
               sum(l.principal_minor - coalesce(p.p, 0))::text as t
        from loans l left join paid p on p.loan_id = l.id
-       where l.user_id = $1 and l.start_date <= $2 group by l.direction, l.currency`,
+       where l.user_id = $1 and l.start_date <= $2
+         and l.cancelled_at is null -- a cancelled loan never counts at any date: its money reversal carries the original date, so the ledger says it never happened
+       group by l.direction, l.currency`,
       [userId, to],
     ),
   ]);

@@ -3,9 +3,10 @@ import type { PGlite } from "@electric-sql/pglite";
 import { todayDR } from "../../src/lib/dates";
 import { createAccount, getAccount } from "../../src/server/accounts";
 import type { Executor } from "../../src/server/executor";
+import { netWorth, netWorthEvolution } from "../../src/server/assets";
 import { voidMovement } from "../../src/server/ledger";
 import {
-  counterpartyHistory, createLoan, getLoan, listDueLoans, listLoans, loanSummary, registerPayment, voidLoanOrigination, voidPayment,
+  cancelLoan, counterpartyHistory, createLoan, getLoan, listDueLoans, listLoans, loanSummary, registerPayment, voidLoanOrigination, voidPayment,
 } from "../../src/server/loans";
 import { liteExecutor, makeDb } from "../db/helpers";
 
@@ -206,7 +207,7 @@ describe("voiding", () => {
     await voidLoanOrigination(ex, A, origin);
     expect(await bal(A, a)).toBe(100000n);
     const d = await getLoan(ex, A, id);
-    expect([d.loan.funded, d.loan.status]).toEqual([false, "pendiente"]);
+    expect([d.loan.funded, d.loan.status]).toEqual([true, "cancelado"]);
   });
 
   it("another user cannot void my payment", async () => {
@@ -294,5 +295,97 @@ describe("audit", () => {
     expect(await count("audit_log")).toBe(n);
     const d = await getLoan(ex, A, id);
     expect(d.history.map((x) => x.action)).toEqual(["loan.create", "loan.payment", "loan.payment_void"]);
+  });
+});
+
+describe("cancelled loans", () => {
+  const nwDop = async (asOf?: string) => (await netWorth(ex, A, { asOf })).byCurrency.DOP;
+
+  it.each(["receivable", "payable"] as const)("voiding a funded %s origination restores the account and removes the loan from every total", async (direction) => {
+    const a = await acct(A, "Banco");
+    const { id } = await lend(a, { direction, startDate: "2026-01-10", dueDate: day(-1) });
+    const origin = (await getLoan(ex, A, id)).movements[0].id;
+    await voidLoanOrigination(ex, A, origin);
+    expect(await bal(A, a)).toBe(100000n);
+    const s = await loanSummary(ex, A);
+    expect([s.receivable.DOP, s.payable.DOP]).toEqual([0n, 0n]);
+    expect(await listDueLoans(ex, A)).toEqual([]);
+    expect(await listLoans(ex, A)).toEqual([]);
+    expect((await listLoans(ex, A, { includeCancelled: true })).map((l) => l.status)).toEqual(["cancelado"]);
+    const nw = await nwDop();
+    expect([nw.accounts, nw.receivables, nw.payables, nw.net]).toEqual([100000n, 0n, 0n, 100000n]);
+    expect((await netWorthEvolution(ex, A, 3)).at(-1)!.byCurrency.DOP.net).toBe(100000n);
+    const d = await getLoan(ex, A, id);
+    expect([d.loan.status, d.loan.cancelledAt !== null]).toEqual(["cancelado", true]);
+    expect(d.history.map((h) => h.action)).toContain("loan.origin_void");
+    await expect(voidLoanOrigination(ex, A, origin)).rejects.toThrow(/anulado|cancelado/);
+  });
+
+  it("cancelLoan on an unfunded loan: excluded from totals, audited, idempotent-safe, user-isolated", async () => {
+    const a = await acct(A, "Banco");
+    const { id } = await lend(a, { funded: false, dueDate: day(-1) });
+    expect((await nwDop()).receivables).toBe(100000n);
+    await expect(cancelLoan(ex, B, id)).rejects.toThrow(/no encontrad/);
+    await cancelLoan(ex, A, id, "error de captura");
+    await expect(cancelLoan(ex, A, id)).rejects.toThrow(/ya está cancelado/);
+    expect(await status(id)).toBe("cancelado");
+    expect((await loanSummary(ex, A)).receivable.DOP).toBe(0n);
+    expect(await listDueLoans(ex, A)).toEqual([]);
+    const nw = await nwDop();
+    expect([nw.receivables, nw.net]).toEqual([0n, 100000n]);
+    expect(await bal(A, a)).toBe(100000n);
+    const h = (await getLoan(ex, A, id)).history.filter((x) => x.action === "loan.cancel");
+    expect(h).toHaveLength(1);
+    expect((h[0].after as { reason: string }).reason).toBe("error de captura");
+  });
+
+  it("as-of net worth: a cancelled loan never counts, at any date (no historical double count)", async () => {
+    const a = await acct(A, "Banco");
+    const { id } = await lend(a, { funded: false, startDate: "2026-01-10" });
+    await cancelLoan(ex, A, id);
+    expect((await nwDop("2026-03-01")).receivables).toBe(0n);
+    expect((await nwDop(todayDR())).receivables).toBe(0n);
+    // funded origination voided later: money restored from the loan's start date AND loan excluded => no window with double count
+    const f = await lend(a, { counterparty: "Luis", startDate: "2026-01-20" });
+    await voidLoanOrigination(ex, A, (await getLoan(ex, A, f.id)).movements[0].id);
+    const mid = await nwDop("2026-02-15");
+    expect(mid.receivables).toBe(0n);
+    expect(mid.net).toBe(mid.accounts);
+  });
+
+  it("cancelLoan is refused with funded loans and with active payments; allowed after voiding them", async () => {
+    const a = await acct(A, "Banco");
+    const funded = await lend(a);
+    await expect(cancelLoan(ex, A, funded.id)).rejects.toThrow(/anula el desembolso/);
+    const { id } = await lend(a, { funded: false, counterparty: "Ana" });
+    const p = await pay(id, a, { principal: "100" });
+    await expect(cancelLoan(ex, A, id)).rejects.toThrow(/pagos registrados/);
+    await voidPayment(ex, A, p.id);
+    await cancelLoan(ex, A, id);
+    expect(await status(id)).toBe("cancelado");
+  });
+
+  it("payments on a cancelled loan are rejected by the service and by the DB trigger; reversals still allowed", async () => {
+    const a = await acct(A, "Banco");
+    const { id } = await lend(a, { funded: false });
+    await cancelLoan(ex, A, id);
+    await expect(pay(id, a, { principal: "100" })).rejects.toThrow(/cancelado/);
+    await expect(db.query(
+      `insert into transactions (user_id, type, date, description, loan_id) values ($1,'loan_collection','2026-02-01','x',$2)`, [A, id],
+    )).rejects.toThrow(/cancelled/);
+    expect(await bal(A, a)).toBe(100000n);
+  });
+
+  it("view exposes status 'cancelado' and cancelled_at; other users' loans are unaffected", async () => {
+    const a = await acct(A, "Banco");
+    const b = await acct(B, "Banco B");
+    const mine = await lend(a, { funded: false });
+    const theirs = await createLoan(ex, B, { direction: "receivable", counterparty: "Z", principal: "500", currency: "DOP", startDate: "2026-01-10", accountId: b, funded: false });
+    await cancelLoan(ex, A, mine.id);
+    const rows = (await db.query<{ loan_id: string; status: string; c: boolean }>(`select loan_id, status, cancelled_at is not null c from loan_balances`)).rows;
+    expect(rows.find((r) => r.loan_id === mine.id)).toMatchObject({ status: "cancelado", c: true });
+    expect(rows.find((r) => r.loan_id === theirs.id)).toMatchObject({ status: "pendiente", c: false });
+    expect((await loanSummary(ex, B)).receivable.DOP).toBe(50000n);
+    await expect(cancelLoan(ex, B, mine.id)).rejects.toThrow(/no encontrad/);
   });
 });

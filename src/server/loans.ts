@@ -10,7 +10,7 @@ import {
 } from "./schemas";
 
 export type LoanDirection = "receivable" | "payable";
-export type LoanStatus = "pendiente" | "parcial" | "liquidado" | "vencido";
+export type LoanStatus = "pendiente" | "parcial" | "liquidado" | "vencido" | "cancelado";
 
 export interface LoanRow {
   id: string; direction: LoanDirection; counterparty: string; currency: Currency;
@@ -19,6 +19,8 @@ export interface LoanRow {
   status: LoanStatus;
   startDate: string; dueDate: string | null; interestRatePct: string | null;
   accountId: string | null; accountName: string | null; funded: boolean; notes: string | null; createdAt: string;
+  /** Set when the loan was cancelled: history only, excluded from every total. */
+  cancelledAt: string | null;
 }
 
 // ---- writes -------------------------------------------------------------------
@@ -94,16 +96,17 @@ export async function registerPayment(ex: Executor, userId: string, loanId: stri
   try {
     return await ex.transaction(async (q) => {
       const l = await q(
-        `select direction::text as direction, currency::text as currency, counterparty, start_date::text as start_date
+        `select direction::text as direction, currency::text as currency, counterparty, start_date::text as start_date, cancelled_at
          from loans where id = $1 and user_id = $2 for update`,
         [loanId, userId],
       );
       if (!l.rows[0]) throw notFound("Préstamo");
-      const loan = l.rows[0] as { direction: LoanDirection; currency: Currency; counterparty: string; start_date: string };
+      const loan = l.rows[0] as { direction: LoanDirection; currency: Currency; counterparty: string; start_date: string; cancelled_at: Date | string | null };
       if (key) {
         const existing = await byKey(q);
         if (existing) return { id: existing, duplicate: true };
       }
+      if (loan.cancelled_at) throw new DomainError("LOAN_CANCELLED", "El préstamo está cancelado y no admite pagos.");
       if (i.date < loan.start_date) throw new DomainError("BEFORE_START", "El pago no puede ser anterior a la fecha de inicio del préstamo.");
       const account = await usableAccount(q, userId, i.accountId, loan.currency);
       if (i.principal !== undefined) {
@@ -146,6 +149,9 @@ async function lockLoanMovement(q: Query, userId: string, txnId: string, types: 
   const loanId = pre.rows[0]?.loan_id as string | undefined;
   if (!loanId) throw notFound(label);
   await q(`select id from loans where id = $1 and user_id = $2 for update`, [loanId, userId]);
+  if (types.includes("loan_disbursement") && (await q(`select 1 from loans where id = $1 and cancelled_at is not null`, [loanId])).rows[0]) {
+    throw new DomainError("LOAN_CANCELLED", "El préstamo ya está cancelado.");
+  }
   const o = await lockOriginal(q, userId, txnId);
   if (o.type === "reversal") throw new DomainError("IS_REVERSAL", "Una reversa no se puede anular.");
   if (!types.includes(o.type)) throw new DomainError("WRONG_TYPE", `Este movimiento no es ${label === "Pago" ? "un pago" : "el desembolso inicial"} del préstamo.`);
@@ -171,8 +177,8 @@ export async function voidPayment(ex: Executor, userId: string, paymentTxnId: st
 }
 
 /**
- * Voids the initial disbursement/proceeds, only while the loan has no active payments. The loan record stays
- * (as unfunded: the money movement no longer exists), so nothing is deleted.
+ * Voids the initial disbursement/proceeds, only while the loan has no active payments, and CANCELS the loan
+ * (the money is back in the account, so the loan must stop counting as por cobrar/por pagar). Nothing is deleted.
  */
 export async function voidLoanOrigination(ex: Executor, userId: string, originTxnId: string, reason?: string) {
   const note = reason?.trim().slice(0, 1000) || undefined;
@@ -183,8 +189,27 @@ export async function voidLoanOrigination(ex: Executor, userId: string, originTx
     )).rows[0].n);
     if (n > 0) throw new DomainError("HAS_PAYMENTS", "El préstamo tiene pagos registrados; anúlalos antes de anular el desembolso inicial.");
     const reversalId = await voidLoanTxn(q, userId, o, loanId, "loan.origin_void", note);
-    await q(`update loans set funded_from_account = false where id = $1 and user_id = $2`, [loanId, userId]);
+    await q(`update loans set cancelled_at = now() where id = $1 and user_id = $2`, [loanId, userId]);
     return { reversalId };
+  });
+}
+
+/** Cancels an UNFUNDED loan (entered by mistake; no money to reverse). Funded loans use voidLoanOrigination. */
+export async function cancelLoan(ex: Executor, userId: string, loanId: string, reason?: string) {
+  const note = reason?.trim().slice(0, 1000) || undefined;
+  if (!idSchema.safeParse(loanId).success) throw notFound("Préstamo");
+  return ex.transaction(async (q) => {
+    const r = await q(`select funded_from_account as funded, cancelled_at from loans where id = $1 and user_id = $2 for update`, [loanId, userId]);
+    if (!r.rows[0]) throw notFound("Préstamo");
+    if (r.rows[0].cancelled_at) throw new DomainError("LOAN_CANCELLED", "El préstamo ya está cancelado.");
+    if (r.rows[0].funded) throw new DomainError("LOAN_FUNDED", "El préstamo movió dinero: anula el desembolso inicial para cancelarlo.");
+    const n = Number((await q(
+      `select count(*)::int as n from transactions where loan_id = $1 and type in ('loan_collection','loan_repayment') and status = 'posted'`, [loanId],
+    )).rows[0].n);
+    if (n > 0) throw new DomainError("HAS_PAYMENTS", "El préstamo tiene pagos registrados; anúlalos antes de cancelarlo.");
+    await q(`update loans set cancelled_at = now() where id = $1 and user_id = $2`, [loanId, userId]);
+    await audit(q, userId, "loan.cancel", "loan", loanId, { status: "active" }, { status: "cancelled", reason: note ?? null });
+    return { id: loanId };
   });
 }
 
@@ -197,7 +222,7 @@ const LOAN_SELECT = `
          l.principal_minor::text as principal, b.principal_paid_minor::text as principal_paid,
          b.interest_paid_minor::text as interest_paid, b.outstanding_minor::text as outstanding, b.status,
          l.start_date::text as start_date, l.due_date::text as due_date, l.interest_rate_pct::text as rate,
-         l.account_id, a.name as account_name, l.funded_from_account as funded, l.notes, l.created_at::text as created_at
+         l.account_id, a.name as account_name, l.funded_from_account as funded, l.notes, l.created_at::text as created_at, l.cancelled_at::text as cancelled_at
   from loans l
   join loan_balances b on b.loan_id = l.id
   left join accounts a on a.id = l.account_id`;
@@ -210,10 +235,11 @@ const mapLoan = (r: Row): LoanRow => ({
   interestRatePct: (r.rate as string | null) ?? null, accountId: (r.account_id as string | null) ?? null,
   accountName: (r.account_name as string | null) ?? null, funded: r.funded as boolean,
   notes: (r.notes as string | null) ?? null, createdAt: r.created_at as string,
+  cancelledAt: (r.cancelled_at as string | null) ?? null,
 });
 
 const escapeLike = (s: string) => s.replace(/[\\%_]/g, "\\$&");
-const ORDER = `order by (b.status = 'liquidado'), l.due_date nulls last, l.created_at desc, l.id`;
+const ORDER = `order by (b.status in ('liquidado', 'cancelado')), l.due_date nulls last, l.created_at desc, l.id`;
 
 export async function listLoans(ex: Executor, userId: string, raw: LoanFilters = {}): Promise<LoanRow[]> {
   const f = loanFiltersSchema.parse(raw);
@@ -222,6 +248,7 @@ export async function listLoans(ex: Executor, userId: string, raw: LoanFilters =
   const p = (v: unknown) => (params.push(v), `$${params.length}`);
   if (f.direction) where.push(`l.direction::text = ${p(f.direction)}`);
   if (f.status) where.push(`b.status = ${p(f.status)}`);
+  else if (!f.includeCancelled) where.push(`b.status <> 'cancelado'`);
   if (f.currency) where.push(`l.currency::text = ${p(f.currency)}`);
   if (f.q) where.push(`l.counterparty ilike ${p(`%${escapeLike(f.q)}%`)} escape '\\'`);
   return (await ex.query(`${LOAN_SELECT} where ${where.join(" and ")} ${ORDER}`, params)).rows.map(mapLoan);
@@ -231,7 +258,7 @@ export async function listLoans(ex: Executor, userId: string, raw: LoanFilters =
 export async function listDueLoans(ex: Executor, userId: string, days = 30): Promise<LoanRow[]> {
   const n = Math.min(Math.max(Math.trunc(days), 0), 3650);
   const r = await ex.query(
-    `${LOAN_SELECT} where l.user_id = $1 and b.outstanding_minor > 0 and l.due_date is not null and l.due_date <= ${TODAY} + $2::int
+    `${LOAN_SELECT} where l.user_id = $1 and b.status <> 'cancelado' and b.outstanding_minor > 0 and l.due_date is not null and l.due_date <= ${TODAY} + $2::int
      order by l.due_date, l.id`,
     [userId, n],
   );
@@ -303,7 +330,7 @@ export async function loanSummary(ex: Executor, userId: string): Promise<LoanSum
   const r = await ex.query(
     `select direction::text as direction, currency::text as currency,
             sum(outstanding_minor)::text as outstanding, sum(interest_paid_minor)::text as interest
-     from loan_balances where user_id = $1 group by direction, currency`,
+     from loan_balances where user_id = $1 and cancelled_at is null group by direction, currency`,
     [userId],
   );
   const s: LoanSummary = { receivable: emptyTotals(), payable: emptyTotals(), interestCollected: emptyTotals(), interestPaid: emptyTotals() };

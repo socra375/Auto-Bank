@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { ErrorState } from "@/components/states/states";
 import { ActionForm } from "@/components/ui/action-form";
 import { Disclosure, Field, inputCls } from "@/components/ui/fields";
-import { registerPaymentAction, voidLoanOriginAction, voidPaymentAction } from "@/lib/actions/loans";
+import { cancelLoanAction, registerPaymentAction, voidLoanOriginAction, voidPaymentAction } from "@/lib/actions/loans";
 import { requireOwner } from "@/lib/auth/guard";
 import { fmtDate, todayDR } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -19,7 +19,7 @@ import { getLoan } from "@/server/loans";
 export const metadata: Metadata = { title: "Detalle de préstamo" };
 
 const ACTION_LABEL: Record<string, string> = {
-  "loan.create": "Préstamo registrado", "loan.payment": "Pago registrado", "loan.payment_void": "Pago anulado", "loan.origin_void": "Desembolso inicial anulado",
+  "loan.create": "Préstamo registrado", "loan.payment": "Pago registrado", "loan.payment_void": "Pago anulado", "loan.origin_void": "Desembolso inicial anulado", "loan.cancel": "Préstamo cancelado",
 };
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
@@ -38,6 +38,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const accounts = (await listAccounts(ex, userId)).filter((a) => a.status === "active" && a.currency === l.currency);
   const receivable = l.direction === "receivable";
   const activePayments = movements.some((m) => m.status === "posted" && (m.type === "loan_collection" || m.type === "loan_repayment"));
+  const cancelled = l.status === "cancelado";
+  const canCancel = !cancelled && !l.funded && !activePayments;
   const formKey = crypto.randomUUID(); // idempotency key: new per rendered form
   const money = (n: bigint) => formatMoney(n, l.currency);
 
@@ -67,7 +69,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {l.notes && <p className="mt-1 text-sm text-muted">Notas: {l.notes}</p>}
       </section>
 
-      <section className="mb-6">
+      {cancelled && <p className="mb-6 rounded-xl border border-border bg-surface p-4 text-sm text-muted">Préstamo cancelado: no cuenta en tus totales ni admite nuevos pagos.</p>}
+      {canCancel && (
+        <section className="mb-6 max-w-md">
+          <Disclosure summary="Cancelar préstamo">
+            <ActionForm action={cancelLoanAction.bind(null, id)} submit="Confirmar cancelación" variant="danger">
+              <p className="text-sm text-muted">El préstamo dejará de contar como pendiente. Esta acción no se puede deshacer.</p>
+              <Field label="Motivo (opcional)" id="cancel-reason"><input id="cancel-reason" name="reason" maxLength={300} className={inputCls} /></Field>
+            </ActionForm>
+          </Disclosure>
+        </section>
+      )}
+
+      {!cancelled && <section className="mb-6">
         <Disclosure summary={receivable ? "Registrar cobro" : "Registrar pago"}>
           {accounts.length === 0 ? (
             <p className="text-sm text-muted">Necesitas una cuenta activa en {l.currency} para registrar pagos.</p>
@@ -92,7 +106,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </ActionForm>
           )}
         </Disclosure>
-      </section>
+      </section>}
 
       <section aria-labelledby="movs" className="mb-6 rounded-xl border border-border bg-surface p-4">
         <h2 id="movs" className="mb-3 text-base font-semibold">Movimientos del préstamo</h2>

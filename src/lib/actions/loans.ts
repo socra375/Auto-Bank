@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createLoan, registerPayment, voidLoanOrigination, voidPayment } from "@/server/loans";
+import { cancelLoan, createLoan, registerPayment, voidLoanOrigination, voidPayment } from "@/server/loans";
 import { fields, guarded, type ActionState } from "./guarded";
 
 const done = (loanId?: string) => {
@@ -44,5 +44,13 @@ export async function voidLoanOriginAction(loanId: string, txnId: string, _: Act
     await voidLoanOrigination(ex, u, txnId, fields(form).reason);
     done(loanId);
     return "Desembolso anulado.";
+  });
+}
+
+export async function cancelLoanAction(loanId: string, _: ActionState, form: FormData) {
+  return guarded(async (u, ex) => {
+    await cancelLoan(ex, u, loanId, fields(form).reason);
+    done(loanId);
+    return "Préstamo cancelado.";
   });
 }
