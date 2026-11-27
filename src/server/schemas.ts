@@ -147,6 +147,19 @@ export const loanFiltersSchema = z.object({
 });
 export type LoanFilters = z.input<typeof loanFiltersSchema>;
 
+// ---- reports ----------------------------------------------------------------
+export const GRANULARITIES = ["day", "week", "month"] as const;
+export const reportFiltersSchema = z
+  .object({
+    dateFrom: dateSchema.optional(),
+    dateTo: dateSchema.optional(),
+    currency: currencySchema.optional(),
+    accountId: idSchema.optional(),
+    granularity: z.enum(GRANULARITIES, { error: "Granularidad inválida." }).default("month"),
+  })
+  .refine((v) => !v.dateFrom || !v.dateTo || v.dateFrom <= v.dateTo, { message: "La fecha inicial no puede ser posterior a la final.", path: ["dateFrom"] });
+export type ReportFilters = z.input<typeof reportFiltersSchema>;
+
 // ---- assets (patrimonio) ----------------------------------------------------
 export const ASSET_TYPES = ["real_estate", "vehicle", "technology", "furniture", "other"] as const;
 export const assetTypeSchema = z.enum(ASSET_TYPES, { error: "Tipo de bien inválido." });
