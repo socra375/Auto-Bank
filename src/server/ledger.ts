@@ -16,6 +16,8 @@ export interface NewTransaction {
   type: "income" | "expense" | "transfer" | "adjustment" | "loan_disbursement" | "loan_proceeds" | "loan_collection" | "loan_repayment";
   date: string; description: string; notes?: string; categoryId?: string; loanId?: string; fxRate?: string;
   idempotencyKey?: string; legs: Leg[];
+  /** Who originated it (created_by + audit actor). Default 'user'. */
+  actor?: "user" | "eddie";
 }
 
 
@@ -27,9 +29,9 @@ export interface NewTransaction {
  */
 export async function postTransaction(q: Query, userId: string, t: NewTransaction): Promise<string> {
   const h = await q(
-    `insert into transactions (user_id, type, date, description, notes, category_id, loan_id, fx_rate, idempotency_key)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
-    [userId, t.type, t.date, t.description, t.notes ?? null, t.categoryId ?? null, t.loanId ?? null, t.fxRate ?? null, t.idempotencyKey ?? null],
+    `insert into transactions (user_id, type, date, description, notes, category_id, loan_id, fx_rate, idempotency_key, created_by)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id`,
+    [userId, t.type, t.date, t.description, t.notes ?? null, t.categoryId ?? null, t.loanId ?? null, t.fxRate ?? null, t.idempotencyKey ?? null, t.actor ?? "user"],
   );
   const id = h.rows[0].id as string;
   for (const l of t.legs) {
@@ -42,7 +44,7 @@ export async function postTransaction(q: Query, userId: string, t: NewTransactio
   await audit(q, userId, "txn.create", "transaction", id, null, {
     type: t.type, date: t.date, description: t.description, notes: t.notes ?? null, categoryId: t.categoryId ?? null, loanId: t.loanId ?? null,
     fxRate: t.fxRate ?? null, legs: t.legs,
-  });
+  }, t.actor ?? "user");
   return id;
 }
 
@@ -98,6 +100,11 @@ async function buildTransaction(q: Query, userId: string, i: z.output<typeof mov
       ] };
     }
   }
+}
+
+/** Validates a movement (ownership, active accounts, category kind, currency/FX rules) WITHOUT writing; returns the legs it would post. */
+export async function validateMovement(q: Query, userId: string, raw: MovementInput): Promise<NewTransaction> {
+  return buildTransaction(q, userId, movementSchema.parse(raw));
 }
 
 async function idForKey(q: Query, userId: string, key: string) {
