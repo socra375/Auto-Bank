@@ -2,11 +2,13 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Bot, X } from "lucide-react";
-import { EmptyState } from "@/components/states/states";
+import { useState } from "react";
+import { EddiePanel } from "./eddie-panel";
 
 export function EddieButton() {
+  const [open, setOpen] = useState(false);
   return (
-    <Dialog.Root>
+    <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger
         aria-label="Abrir Eddie, asistente"
         className="fixed bottom-20 right-4 z-30 grid size-14 place-items-center rounded-full bg-primary text-white shadow-lg hover:brightness-110 md:bottom-6 md:right-6"
@@ -20,21 +22,17 @@ export function EddieButton() {
           className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-surface shadow-xl"
         >
           <div className="flex items-center justify-between border-b border-border p-4">
-            <Dialog.Title className="text-base font-semibold">Eddie</Dialog.Title>
+            <div>
+              <Dialog.Title className="text-base font-semibold">Eddie</Dialog.Title>
+              <Dialog.Description id="eddie-desc" className="text-xs text-muted">
+                Eddie propone, tú confirmas.
+              </Dialog.Description>
+            </div>
             <Dialog.Close aria-label="Cerrar Eddie" className="rounded-md p-2 hover:bg-bg">
               <X className="size-5" aria-hidden />
             </Dialog.Close>
           </div>
-          <div className="flex-1 p-4">
-            <Dialog.Description id="eddie-desc" className="sr-only">
-              Estado del asistente Eddie
-            </Dialog.Description>
-            <EmptyState
-              icon={Bot}
-              title="Eddie aún no está conectado"
-              description="El asistente estará disponible en la etapa 9. Por ahora no responde ni accede a tus datos."
-            />
-          </div>
+          {open && <EddiePanel />}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
