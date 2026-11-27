@@ -13,8 +13,8 @@ import type { z } from "zod";
 export type EntryKind = "income" | "expense" | "transfer" | "adjustment" | "loan_principal" | "loan_interest";
 export interface Leg { accountId: string; currency: Currency; kind: EntryKind; amountMinor: bigint }
 export interface NewTransaction {
-  type: "income" | "expense" | "transfer" | "adjustment";
-  date: string; description: string; notes?: string; categoryId?: string; fxRate?: string;
+  type: "income" | "expense" | "transfer" | "adjustment" | "loan_disbursement" | "loan_proceeds" | "loan_collection" | "loan_repayment";
+  date: string; description: string; notes?: string; categoryId?: string; loanId?: string; fxRate?: string;
   idempotencyKey?: string; legs: Leg[];
 }
 
@@ -27,9 +27,9 @@ export interface NewTransaction {
  */
 export async function postTransaction(q: Query, userId: string, t: NewTransaction): Promise<string> {
   const h = await q(
-    `insert into transactions (user_id, type, date, description, notes, category_id, fx_rate, idempotency_key)
-     values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
-    [userId, t.type, t.date, t.description, t.notes ?? null, t.categoryId ?? null, t.fxRate ?? null, t.idempotencyKey ?? null],
+    `insert into transactions (user_id, type, date, description, notes, category_id, loan_id, fx_rate, idempotency_key)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
+    [userId, t.type, t.date, t.description, t.notes ?? null, t.categoryId ?? null, t.loanId ?? null, t.fxRate ?? null, t.idempotencyKey ?? null],
   );
   const id = h.rows[0].id as string;
   for (const l of t.legs) {
@@ -40,7 +40,7 @@ export async function postTransaction(q: Query, userId: string, t: NewTransactio
     );
   }
   await audit(q, userId, "txn.create", "transaction", id, null, {
-    type: t.type, date: t.date, description: t.description, notes: t.notes ?? null, categoryId: t.categoryId ?? null,
+    type: t.type, date: t.date, description: t.description, notes: t.notes ?? null, categoryId: t.categoryId ?? null, loanId: t.loanId ?? null,
     fxRate: t.fxRate ?? null, legs: t.legs,
   });
   return id;
@@ -135,9 +135,9 @@ export const createAdjustment = (ex: Executor, u: string, i: Typed<"adjustment">
 
 // ---- corrections ------------------------------------------------------------
 
-interface Original { id: string; type: string; status: string; date: string; description: string; categoryId: string | null; loanId: string | null }
+export interface Original { id: string; type: string; status: string; date: string; description: string; categoryId: string | null; loanId: string | null }
 
-async function lockOriginal(q: Query, userId: string, id: string): Promise<Original> {
+export async function lockOriginal(q: Query, userId: string, id: string): Promise<Original> {
   if (!idSchema.safeParse(id).success) throw notFound("Movimiento");
   const r = await q(
     `select id, type::text as type, status::text as status, date::text as date, description,
@@ -156,7 +156,7 @@ function assertReversible(o: Original) {
 }
 
 /** Inserts the exact negation of `o` (same accounts, kinds and value dates) and marks `o` reversed. */
-async function reverse(q: Query, userId: string, o: Original, reason?: string): Promise<string> {
+export async function reverse(q: Query, userId: string, o: Original, reason?: string): Promise<string> {
   const h = await q(
     `insert into transactions (user_id, type, date, description, notes, category_id, loan_id, reverses_id)
      values ($1,'reversal',$2,$3,$4,$5,$6,$7) returning id`,
@@ -172,7 +172,7 @@ async function reverse(q: Query, userId: string, o: Original, reason?: string): 
   return revId;
 }
 
-async function markReversed(q: Query, userId: string, id: string, replacedBy: string | null) {
+export async function markReversed(q: Query, userId: string, id: string, replacedBy: string | null) {
   await q(`update transactions set status = 'reversed', replaced_by_id = $3, updated_at = now() where id = $1 and user_id = $2`, [id, userId, replacedBy]);
 }
 
