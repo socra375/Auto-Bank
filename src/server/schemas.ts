@@ -145,3 +145,38 @@ export const loanFiltersSchema = z.object({
   q: z.string().trim().max(100).optional(),
 });
 export type LoanFilters = z.input<typeof loanFiltersSchema>;
+
+// ---- assets (patrimonio) ----------------------------------------------------
+export const ASSET_TYPES = ["real_estate", "vehicle", "technology", "furniture", "other"] as const;
+export const assetTypeSchema = z.enum(ASSET_TYPES, { error: "Tipo de bien inválido." });
+const assetName = z.string({ error: "El nombre es obligatorio." }).trim().min(1, "El nombre es obligatorio.").max(120);
+const valueSchema = money(true); // a valuation may be 0 (total loss) but never negative
+
+export const assetCreateSchema = z.object({
+  name: assetName,
+  type: assetTypeSchema,
+  description: optText(1000),
+  /** Fixed at creation; never editable. */
+  currency: currencySchema,
+  acquiredOn: dateSchema.optional(),
+  acquisitionCost: openingSchema.optional(),
+  initialValue: valueSchema,
+  valuedOn: dateSchema,
+  idempotencyKey,
+});
+export type AssetCreateInput = z.input<typeof assetCreateSchema>;
+
+export const assetValuationSchema = z.object({
+  value: valueSchema, valuedOn: dateSchema, source: optText(100), note: optText(1000), idempotencyKey,
+});
+export type AssetValuationInput = z.input<typeof assetValuationSchema>;
+
+export const assetEditSchema = z.object({ name: assetName, description: optText(1000) });
+export const assetDisposeSchema = z.object({ disposedOn: dateSchema, note: optText(1000) });
+
+export const assetFiltersSchema = z.object({
+  type: assetTypeSchema.optional(),
+  status: z.enum(["active", "disposed"]).optional(),
+  currency: currencySchema.optional(),
+});
+export type AssetFilters = z.input<typeof assetFiltersSchema>;
