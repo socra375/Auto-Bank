@@ -100,3 +100,48 @@ export type MovementFilters = z.input<typeof movementFiltersSchema>;
 export const rateSchema = z
   .object({ base: currencySchema, quote: currencySchema, rate: fxRateSchema, date: dateSchema })
   .refine((v) => v.base !== v.quote, { message: "La moneda base y la cotizada deben ser distintas.", path: ["quote"] });
+
+// ---- loans ------------------------------------------------------------------
+const directionSchema = z.enum(["receivable", "payable"], { error: "Tipo de préstamo inválido." });
+const counterparty = z.string({ error: "La persona es obligatoria." }).trim().min(1, "La persona es obligatoria.").max(120);
+
+export const loanCreateSchema = z
+  .object({
+    direction: directionSchema,
+    counterparty,
+    principal: amountSchema,
+    currency: currencySchema,
+    startDate: dateSchema,
+    dueDate: dateSchema.optional(),
+    /** Informational annual rate; real interest is whatever is recorded on payments. */
+    interestRatePct: z.string().trim().regex(/^\d{1,3}(\.\d{1,4})?$/, "Tasa inválida (0 a 999.9999).").optional(),
+    accountId: idSchema.optional(),
+    funded: z.boolean().default(false),
+    notes: optText(1000),
+    idempotencyKey,
+  })
+  .refine((v) => !v.dueDate || v.dueDate >= v.startDate, { message: "El vencimiento no puede ser anterior al inicio.", path: ["dueDate"] })
+  .refine((v) => !v.funded || !!v.accountId, { message: "Selecciona la cuenta que mueve el dinero.", path: ["accountId"] });
+export type LoanCreateInput = z.input<typeof loanCreateSchema>;
+
+export const loanPaymentSchema = z
+  .object({
+    accountId: idSchema,
+    date: dateSchema,
+    principal: amountSchema.optional(),
+    interest: amountSchema.optional(),
+    notes: optText(1000),
+    idempotencyKey,
+  })
+  .refine((v) => v.principal !== undefined || v.interest !== undefined, {
+    message: "Indica el monto de capital y/o de interés.", path: ["principal"],
+  });
+export type LoanPaymentInput = z.input<typeof loanPaymentSchema>;
+
+export const loanFiltersSchema = z.object({
+  direction: directionSchema.optional(),
+  status: z.enum(["pendiente", "parcial", "liquidado", "vencido"]).optional(),
+  currency: currencySchema.optional(),
+  q: z.string().trim().max(100).optional(),
+});
+export type LoanFilters = z.input<typeof loanFiltersSchema>;

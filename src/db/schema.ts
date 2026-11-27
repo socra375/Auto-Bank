@@ -73,9 +73,11 @@ export const loans = pgTable("loans", {
   accountId: uuid("account_id"),
   fundedFromAccount: boolean("funded_from_account").notNull().default(false),
   notes: text("notes"),
+  idempotencyKey: text("idempotency_key"),
   createdAt: ts("created_at"),
 }, (t) => [
   unique().on(t.id, t.userId),
+  unique().on(t.userId, t.idempotencyKey),
   foreignKey({ columns: [t.accountId, t.userId], foreignColumns: [accounts.id, accounts.userId] }),
   index("loans_user_direction_idx").on(t.userId, t.direction),
   index("loans_user_due_idx").on(t.userId, t.dueDate),
