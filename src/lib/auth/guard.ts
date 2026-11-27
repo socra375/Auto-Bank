@@ -11,12 +11,13 @@ export async function requireOwner(): Promise<string> {
   const { data } = await getAuth().getSession();
   const userId = data?.user?.id;
   if (!userId) redirect("/login");
-  let isOwner = false;
+  let status: Awaited<ReturnType<typeof claim>> = "denied";
   try {
-    isOwner = await claim(String(userId), data?.user?.email);
+    status = await claim(String(userId), data?.user?.email, data?.user?.emailVerified);
   } catch {
     redirect("/login");
   }
-  if (!isOwner) redirect("/acceso-denegado");
+  if (status === "unverified") redirect("/acceso-denegado?motivo=correo");
+  if (status !== "owner") redirect("/acceso-denegado");
   return String(userId);
 }

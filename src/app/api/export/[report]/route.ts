@@ -17,12 +17,13 @@ export async function GET(request: Request, ctx: { params: Promise<{ report: str
   const parsed = parseReportQuery((k) => sp.get(k) ?? undefined);
   if (!parsed.ok) return text(400, parsed.error);
   try {
-    const { filename, csv } = await buildReportCsv(getExecutor(), userId, report as ReportKey | "movimientos", parsed.filters);
+    const { filename, csv, truncated } = await buildReportCsv(getExecutor(), userId, report as ReportKey | "movimientos", parsed.filters);
     return new Response(csv, {
       headers: {
         "content-type": "text/csv; charset=utf-8",
         "content-disposition": `attachment; filename="${filename}"`,
         "cache-control": "no-store",
+        ...(truncated ? { "x-export-truncated": "true" } : {}),
       },
     });
   } catch (e) {

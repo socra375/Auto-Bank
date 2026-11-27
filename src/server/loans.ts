@@ -2,6 +2,7 @@ import { emptyTotals, formatMoney, type Currency, type TotalsByCurrency } from "
 import { audit } from "./audit";
 import { getAccount, type AccountWithBalance } from "./accounts";
 import { DomainError, isUniqueViolation, notFound } from "./errors";
+import { assertSameRequest, KEY_REUSED_MESSAGE, requestHash } from "./request-hash";
 import type { Executor, Query, Row } from "./executor";
 import { lockOriginal, markReversed, postTransaction, reverse, type AuditEntry, type Leg } from "./ledger";
 import {
@@ -34,8 +35,10 @@ async function usableAccount(q: Query, userId: string, id: string, currency: Cur
   return a;
 }
 
-const loanByKey = async (q: Query, userId: string, key: string) =>
-  ((await q(`select id from loans where user_id = $1 and idempotency_key = $2`, [userId, key])).rows[0]?.id as string | undefined) ?? null;
+const loanByKey = async (q: Query, userId: string, key: string) => {
+  const r = (await q(`select id, request_hash from loans where user_id = $1 and idempotency_key = $2`, [userId, key])).rows[0];
+  return r ? { id: r.id as string, hash: r.request_hash as string | null } : null;
+};
 
 /**
  * Registers a loan in ONE DB transaction. Funded: the initial money movement (loan_disbursement for a
@@ -45,19 +48,20 @@ const loanByKey = async (q: Query, userId: string, key: string) =>
 export async function createLoan(ex: Executor, userId: string, raw: LoanCreateInput): Promise<{ id: string; duplicate: boolean }> {
   const i = loanCreateSchema.parse(raw);
   const key = i.idempotencyKey;
+  const hash = requestHash("loan", i);
   try {
     return await ex.transaction(async (q) => {
       if (key) {
         const existing = await loanByKey(q, userId, key);
-        if (existing) return { id: existing, duplicate: true };
+        if (existing) { assertSameRequest(existing.hash, hash); return { id: existing.id, duplicate: true }; }
       }
       const account = i.accountId ? await usableAccount(q, userId, i.accountId, i.currency) : null;
       const r = await q(
         `insert into loans (user_id, direction, counterparty, principal_minor, currency, start_date, due_date,
-                            interest_rate_pct, account_id, funded_from_account, notes, idempotency_key)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning id`,
+                            interest_rate_pct, account_id, funded_from_account, notes, idempotency_key, request_hash)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning id`,
         [userId, i.direction, i.counterparty, i.principal.toString(), i.currency, i.startDate, i.dueDate ?? null,
-          i.interestRatePct ?? null, account?.id ?? null, i.funded, i.notes ?? null, key ?? null],
+          i.interestRatePct ?? null, account?.id ?? null, i.funded, i.notes ?? null, key ?? null, key ? hash : null],
       );
       const id = r.rows[0].id as string;
       let txnId: string | null = null;
@@ -76,7 +80,7 @@ export async function createLoan(ex: Executor, userId: string, raw: LoanCreateIn
   } catch (e) {
     if (key && isUniqueViolation(e)) {
       const existing = await loanByKey(ex.query, userId, key); // lost a race with the same key
-      if (existing) return { id: existing, duplicate: true };
+      if (existing) { assertSameRequest(existing.hash, hash); return { id: existing.id, duplicate: true }; }
     }
     throw e;
   }
@@ -91,8 +95,15 @@ export async function registerPayment(ex: Executor, userId: string, loanId: stri
   const i = loanPaymentSchema.parse(raw);
   const key = i.idempotencyKey;
   if (!idSchema.safeParse(loanId).success) throw notFound("Préstamo");
-  const byKey = async (q: Query) =>
-    ((await q(`select id from transactions where user_id = $1 and idempotency_key = $2`, [userId, key]))).rows[0]?.id as string | undefined;
+  const hash = requestHash(`loan:${loanId}`, i);
+  /** Same key must mean the same loan AND the same payload; anything else is a reused key, not a duplicate. */
+  const byKey = async (q: Query) => {
+    const r = (await q(`select id, loan_id, request_hash from transactions where user_id = $1 and idempotency_key = $2`, [userId, key])).rows[0];
+    if (!r) return undefined;
+    if (r.loan_id !== loanId) throw new DomainError("KEY_REUSED", KEY_REUSED_MESSAGE);
+    assertSameRequest(r.request_hash, hash);
+    return r.id as string;
+  };
   try {
     return await ex.transaction(async (q) => {
       const l = await q(
@@ -124,7 +135,7 @@ export async function registerPayment(ex: Executor, userId: string, loanId: stri
       const id = await postTransaction(q, userId, {
         type: receivable ? "loan_collection" : "loan_repayment", loanId, date: i.date,
         description: receivable ? `Cobro de ${loan.counterparty}` : `Pago a ${loan.counterparty}`,
-        notes: i.notes, idempotencyKey: key, legs,
+        notes: i.notes, idempotencyKey: key, requestHash: key ? hash : undefined, legs,
       });
       await audit(q, userId, "loan.payment", "loan", loanId, null, {
         transactionId: id, accountId: account.id, date: i.date,

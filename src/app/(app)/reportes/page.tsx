@@ -104,6 +104,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           {report === "ingresos-gastos" && <ExportLink href={`/api/export/movimientos?${qs(common)}`} label="Exportar movimientos (CSV)" />}
         </div>
       </div>
+      {report === "ingresos-gastos" && (
+        <p className="-mt-2 mb-4 text-xs text-muted">El CSV de movimientos tiene un máximo de 10,000 filas; si se supera, la última fila lo indica y la descarga lleva el encabezado X-Export-Truncated. Acota el rango de fechas.</p>
+      )}
 
       {res.failed ? <ErrorState title="No se pudo generar el reporte" description="Inténtalo de nuevo en unos segundos." /> : res.data[0]}
     </>

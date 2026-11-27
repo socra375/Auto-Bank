@@ -15,27 +15,36 @@ export const MOVEMENT_CSV_MAX = 10_000;
 const pct = (v: Variation): Cell => (v.pctTenths === null ? "n/d" : Number(v.pctTenths) / 10);
 const STATUS = { posted: "Vigente", reversed: "Anulado" } as const;
 
-export interface CsvReport { filename: string; csv: string }
+export interface CsvReport { filename: string; csv: string; truncated: boolean }
 
 /**
  * One CSV per report. Every amount row carries its own Moneda column and amounts are in major units; there is never a row
  * that adds DOP and USD, and totals are emitted per currency.
  */
-export async function buildReportCsv(ex: Executor, userId: string, report: ReportKey | "movimientos", f: ResolvedFilters): Promise<CsvReport> {
+export async function buildReportCsv(ex: Executor, userId: string, report: ReportKey | "movimientos", f: ResolvedFilters, maxRows = MOVEMENT_CSV_MAX): Promise<CsvReport> {
   const range = { from: f.from, to: f.to };
   const raw = { dateFrom: f.from, dateTo: f.to, currency: f.currency, accountId: f.accountId, granularity: f.granularity };
   let headers: string[];
   let rows: Cell[][];
+  let truncated = false;
   switch (report) {
     case "movimientos": {
       headers = ["Fecha", "Tipo", "Descripción", "Estado", "Categoría", "Cuenta", "Moneda", "Partida", "Monto"];
       rows = [];
-      for (let page = 1; rows.length < MOVEMENT_CSV_MAX; page++) {
-        const r = await listMovements(ex, userId, { from: f.from, to: f.to, currency: f.currency, accountId: f.accountId, page, pageSize: 100 });
+      let seen = 0;
+      let total = 0;
+      for (let page = 1; rows.length < maxRows; page++) {
+        const r = await listMovements(ex, userId, { from: f.from, to: f.to, currency: f.currency, accountId: f.accountId, page, pageSize: Math.min(100, maxRows) });
+        seen += r.items.length;
+        total = r.total;
         for (const m of r.items) for (const l of m.legs) {
           rows.push([m.date, TYPE_LABEL[m.type] ?? m.type, m.description, STATUS[m.status], m.categoryName ?? "", l.accountName, l.currency, l.kind, money(l.amountMinor)]);
         }
-        if (page * 100 >= r.total) break;
+        if (seen >= r.total || r.items.length === 0) break;
+      }
+      if (seen < total) {
+        truncated = true; // never hand over an incomplete ledger that looks complete
+        rows.push([`ARCHIVO TRUNCADO: se exportaron ${seen} de ${total} movimientos (máximo ${maxRows} filas). Acota el rango de fechas.`]);
       }
       break;
     }
@@ -99,5 +108,5 @@ export async function buildReportCsv(ex: Executor, userId: string, report: Repor
     }
   }
   const suffix = report === "balances" ? f.to : report === "patrimonio" ? "12m" : `${f.from}_${f.to}`;
-  return { filename: `auto-bank-${report}-${suffix}.csv`, csv: toCsv(headers, rows) };
+  return { filename: `auto-bank-${report}-${suffix}.csv`, csv: toCsv(headers, rows), truncated };
 }

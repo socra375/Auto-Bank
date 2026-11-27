@@ -389,3 +389,23 @@ describe("cancelled loans", () => {
     await expect(cancelLoan(ex, B, mine.id)).rejects.toThrow(/no encontrad/);
   });
 });
+
+describe("idempotency key vs payload", () => {
+  it("loan: different payload with the same key fails; same payload returns the first", async () => {
+    const a = await acct(A, "Banco");
+    const l1 = await lend(a, { idempotencyKey: "loan-key-9001" });
+    await expect(lend(a, { idempotencyKey: "loan-key-9001", principal: "2,000.00" })).rejects.toMatchObject({ code: "KEY_REUSED" });
+    expect((await lend(a, { idempotencyKey: "loan-key-9001" })).id).toBe(l1.id);
+    expect(await count("loans")).toBe(1);
+  });
+  it("payment: different payload fails; a key used on ANOTHER loan is rejected, not returned as a duplicate", async () => {
+    const a = await acct(A, "Banco");
+    const l1 = await lend(a);
+    const l2 = await lend(a);
+    const p1 = await pay(l1.id, a, { principal: "100", idempotencyKey: "pay-key-9001" });
+    await expect(pay(l1.id, a, { principal: "200", idempotencyKey: "pay-key-9001" })).rejects.toMatchObject({ code: "KEY_REUSED" });
+    await expect(pay(l2.id, a, { principal: "100", idempotencyKey: "pay-key-9001" })).rejects.toMatchObject({ code: "KEY_REUSED" });
+    expect((await pay(l1.id, a, { principal: "100", idempotencyKey: "pay-key-9001" })).id).toBe(p1.id);
+    expect((await getLoan(ex, A, l1.id)).loan.principalPaidMinor).toBe(10000n);
+  });
+});

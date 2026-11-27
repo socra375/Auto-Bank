@@ -3,6 +3,7 @@ import { todayDR } from "@/lib/dates";
 import { CURRENCIES, emptyTotals, type Currency, type TotalsByCurrency } from "@/lib/money";
 import { audit } from "./audit";
 import { DomainError, isUniqueViolation, notFound } from "./errors";
+import { assertSameRequest, requestHash } from "./request-hash";
 import type { Executor, Query, Row } from "./executor";
 import { consolidate, type Consolidated } from "./fx";
 import type { AuditEntry } from "./ledger";
@@ -42,10 +43,12 @@ const map = (r: Row): AssetRow => ({
 
 // ---- writes -------------------------------------------------------------------
 
-const assetByKey = async (q: Query, userId: string, key: string) =>
-  ((await q(`select id from assets where user_id = $1 and idempotency_key = $2`, [userId, key])).rows[0]?.id as string | undefined) ?? null;
-const valuationByKey = async (q: Query, userId: string, key: string) =>
-  ((await q(`select id from asset_valuations where user_id = $1 and idempotency_key = $2`, [userId, key])).rows[0]?.id as string | undefined) ?? null;
+const byKey = (table: "assets" | "asset_valuations") => async (q: Query, userId: string, key: string) => {
+  const r = (await q(`select id, request_hash from ${table} where user_id = $1 and idempotency_key = $2`, [userId, key])).rows[0];
+  return r ? { id: r.id as string, hash: r.request_hash as string | null } : null;
+};
+const assetByKey = byKey("assets");
+const valuationByKey = byKey("asset_valuations");
 
 function notFuture(date: string, what: string) {
   if (date > todayDR()) throw new DomainError("FUTURE_DATE", `${what} no puede ser una fecha futura.`);
@@ -56,16 +59,17 @@ export async function createAsset(ex: Executor, userId: string, raw: AssetCreate
   const i = assetCreateSchema.parse(raw);
   const key = i.idempotencyKey;
   notFuture(i.valuedOn, "La fecha de valoración");
+  const hash = requestHash("asset", i);
   try {
     return await ex.transaction(async (q) => {
       if (key) {
         const existing = await assetByKey(q, userId, key);
-        if (existing) return { id: existing, duplicate: true };
+        if (existing) { assertSameRequest(existing.hash, hash); return { id: existing.id, duplicate: true }; }
       }
       const r = await q(
-        `insert into assets (user_id, name, type, currency, acquired_on, acquisition_cost_minor, description, idempotency_key)
-         values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
-        [userId, i.name, i.type, i.currency, i.acquiredOn ?? null, i.acquisitionCost?.toString() ?? null, i.description ?? null, key ?? null],
+        `insert into assets (user_id, name, type, currency, acquired_on, acquisition_cost_minor, description, idempotency_key, request_hash)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id`,
+        [userId, i.name, i.type, i.currency, i.acquiredOn ?? null, i.acquisitionCost?.toString() ?? null, i.description ?? null, key ?? null, key ? hash : null],
       );
       const id = r.rows[0].id as string;
       const v = await q(
@@ -78,7 +82,7 @@ export async function createAsset(ex: Executor, userId: string, raw: AssetCreate
   } catch (e) {
     if (key && isUniqueViolation(e)) {
       const existing = await assetByKey(ex.query, userId, key); // lost a race with the same key
-      if (existing) return { id: existing, duplicate: true };
+      if (existing) { assertSameRequest(existing.hash, hash); return { id: existing.id, duplicate: true }; }
     }
     throw e;
   }
@@ -93,20 +97,21 @@ export async function addValuation(ex: Executor, userId: string, assetId: string
   const key = i.idempotencyKey;
   if (!idSchema.safeParse(assetId).success) throw notFound("Bien");
   notFuture(i.valuedOn, "La fecha de valoración");
+  const vHash = requestHash(`asset:${assetId}`, i);
   try {
     return await ex.transaction(async (q) => {
       const a = await q(`select status::text as status from assets where id = $1 and user_id = $2 for update`, [assetId, userId]);
       if (!a.rows[0]) throw notFound("Bien");
       if (key) {
         const existing = await valuationByKey(q, userId, key);
-        if (existing) return { id: existing, duplicate: true };
+        if (existing) { assertSameRequest(existing.hash, vHash); return { id: existing.id, duplicate: true }; }
       }
       if (a.rows[0].status === "disposed") throw new DomainError("ASSET_DISPOSED", "El bien fue dado de baja y no admite nuevas valoraciones.");
       const prev = await q(`select value_minor::text as v, valued_on::text as d from asset_current_values where asset_id = $1`, [assetId]);
       const r = await q(
-        `insert into asset_valuations (asset_id, user_id, value_minor, valued_on, source, note, idempotency_key)
-         values ($1,$2,$3,$4,$5,$6,$7) returning id`,
-        [assetId, userId, i.value.toString(), i.valuedOn, i.source ?? null, i.note ?? null, key ?? null],
+        `insert into asset_valuations (asset_id, user_id, value_minor, valued_on, source, note, idempotency_key, request_hash)
+         values ($1,$2,$3,$4,$5,$6,$7,$8) returning id`,
+        [assetId, userId, i.value.toString(), i.valuedOn, i.source ?? null, i.note ?? null, key ?? null, key ? vHash : null],
       );
       const id = r.rows[0].id as string;
       await audit(q, userId, "asset.valuation", "asset", assetId,
@@ -117,7 +122,7 @@ export async function addValuation(ex: Executor, userId: string, assetId: string
   } catch (e) {
     if (key && isUniqueViolation(e)) {
       const existing = await valuationByKey(ex.query, userId, key);
-      if (existing) return { id: existing, duplicate: true };
+      if (existing) { assertSameRequest(existing.hash, vHash); return { id: existing.id, duplicate: true }; }
     }
     throw e;
   }

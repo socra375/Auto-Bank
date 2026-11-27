@@ -15,17 +15,30 @@ export async function claimOwner(q: Query, userId: string): Promise<boolean> {
   return (await getOwnerId(q)) === userId;
 }
 
+export type ClaimStatus = "owner" | "unverified" | "denied";
+
 /**
  * Neon Auth sign-up is public, so being authenticated is not enough: only the configured
- * OWNER_EMAIL may claim ownership. Fails closed when it is unset. Once an owner exists,
+ * OWNER_EMAIL, with a VERIFIED email, may make the FIRST claim (otherwise anyone who knows the address
+ * could register it before the real owner). Fails closed when OWNER_EMAIL is unset. Once an owner exists,
  * only that user id passes (an email change must not lock the owner out).
+ * "unverified" = the address matches but is not verified yet (lets the UI say what to do).
  */
-export async function claimIfAllowed(
-  q: Query, userId: string, email: string | null | undefined, allowedEmail: string | undefined,
-): Promise<boolean> {
+export async function evaluateClaim(
+  q: Query, userId: string, email: string | null | undefined, allowedEmail: string | undefined, emailVerified: boolean | null | undefined,
+): Promise<ClaimStatus> {
   const owner = await getOwnerId(q);
-  if (owner) return owner === userId;
+  if (owner) return owner === userId ? "owner" : "denied";
   const allowed = allowedEmail?.trim().toLowerCase();
-  if (!allowed || email?.trim().toLowerCase() !== allowed) return false;
-  return claimOwner(q, userId);
+  if (!allowed || email?.trim().toLowerCase() !== allowed) return "denied";
+  if (emailVerified !== true) return "unverified";
+  return (await claimOwner(q, userId)) ? "owner" : "denied";
 }
+
+export async function claimIfAllowed(
+  q: Query, userId: string, email: string | null | undefined, allowedEmail: string | undefined, emailVerified: boolean | null | undefined,
+): Promise<boolean> {
+  return (await evaluateClaim(q, userId, email, allowedEmail, emailVerified)) === "owner";
+}
+
+export const UNVERIFIED_MESSAGE = "Verifica tu correo para activar la cuenta de propietario.";
