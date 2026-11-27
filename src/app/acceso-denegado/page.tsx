@@ -14,7 +14,7 @@ export default async function AccesoDenegado({ searchParams }: { searchParams: P
           : "Tu cuenta no es la propietaria de esta instalación de Auto-Bank, por lo que no puedes ver sus datos."}
       </p>
       <form action={signOutAction}>
-        <button type="submit" className="w-full rounded-md bg-primary px-4 py-2 font-semibold text-white">
+        <button type="submit" className="btn btn-primary w-full">
           Cerrar sesión
         </button>
       </form>

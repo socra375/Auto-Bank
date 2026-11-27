@@ -64,7 +64,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       <nav aria-label="Categorías" className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 text-sm">
         {tabs.map((t) => (
           <Link key={t.key} href={`/mercados?vista=${t.key}`} aria-current={!symbol && vista === t.key ? "page" : undefined}
-            className={`whitespace-nowrap rounded-md border px-3 py-1.5 ${!symbol && vista === t.key ? "border-primary bg-primary text-white" : "border-border bg-surface"}`}>
+            className="pill">
             {t.label}
           </Link>
         ))}
@@ -83,7 +83,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           <WatchlistManager lists={lists} activeId={activeList?.id} />
           {scope && rowsRes && (rowsRes.failed
             ? <ErrorState title="No se pudieron cargar las cotizaciones" description="Inténtalo de nuevo en unos segundos." />
-            : <section aria-labelledby="wl-q"><h2 id="wl-q" className="mb-2 text-base font-semibold">{activeList?.name}</h2>
+            : <section aria-labelledby="wl-q"><h2 id="wl-q" className="mb-2 section-title">{activeList?.name}</h2>
                 <QuoteBoard key={scopeKey} initialRows={rowsRes.data} loadedAt={loadedAt} scope={scopeKey} empty="Esta lista no tiene símbolos. Búscalos arriba y agrégalos." /></section>)}
         </div>
       )}
@@ -98,7 +98,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
 function QuoteSummary({ name, q }: { name: string; q: import("@/server/market/types").Quote }) {
   const reason = reasonText(q);
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <div className="card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-2xl font-semibold">{fmtNum(q.price)}{q.currency && q.price !== null && <span className="ml-1 text-sm font-normal text-muted">{q.currency}</span>}</p>
         <StatusBadge status={q.status} />

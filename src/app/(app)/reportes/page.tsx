@@ -65,7 +65,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       <PageHeader title="Reportes" description="Cada moneda se reporta por separado; DOP y USD nunca se suman. Los traspasos, ajustes y el capital de préstamos no son ingresos ni gastos." />
       <div className="mb-4"><PillNav label="Reportes" items={REPORT_KEYS.map((k) => ({ href: `/reportes?${qs({ ...common, r: k })}`, text: LABEL[k], active: k === report }))} /></div>
 
-      <form method="get" action="/reportes" className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5">
+      <form method="get" action="/reportes" className="mb-4 grid gap-3 card sm:grid-cols-2 lg:grid-cols-5">
         <input type="hidden" name="r" value={report} />
         {report !== "patrimonio" && (
           <>
@@ -91,14 +91,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           </Field>
         )}
         <div className="flex items-end gap-2">
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Aplicar</button>
-          <Link href={`/reportes?r=${report}`} className="rounded-md border border-border px-4 py-2 text-sm">Limpiar</Link>
+          <button type="submit" className="btn btn-primary">Aplicar</button>
+          <Link href={`/reportes?r=${report}`} className="btn btn-secondary">Limpiar</Link>
         </div>
       </form>
       {!parsed.ok && <p role="alert" className="mb-4 text-sm text-negative">{parsed.error} Se usó el período por defecto (últimos 30 días).</p>}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">{LABEL[report]}</h2>
+        <h2 className="section-title">{LABEL[report]}</h2>
         <div className="flex gap-2">
           <ExportLink href={`/api/export/${report}?${qs(common)}`} />
           {report === "ingresos-gastos" && <ExportLink href={`/api/export/movimientos?${qs(common)}`} label="Exportar movimientos (CSV)" />}

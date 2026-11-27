@@ -26,7 +26,7 @@ export function FiltersForm({
 }) {
   const v = (k: string) => first(sp[k]) ?? "";
   return (
-    <form method="get" action={action} className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div role="search" aria-label="Filtros" className="contents"><form method="get" action={action} className="card mb-4 grid grid-cols-2 gap-3 !p-4 sm:gap-4 lg:grid-cols-4">
       <Field label="Desde" id="f-from"><input id="f-from" name="from" type="date" defaultValue={v("from")} className={inputCls} /></Field>
       <Field label="Hasta" id="f-to"><input id="f-to" name="to" type="date" defaultValue={v("to")} className={inputCls} /></Field>
       {showType && (
@@ -56,12 +56,12 @@ export function FiltersForm({
           <Options placeholder="Todos" items={[{ value: "posted", label: "Vigentes" }, { value: "reversed", label: "Anulados / corregidos" }]} />
         </select>
       </Field>
-      <Field label="Buscar" id="f-q"><input id="f-q" name="q" type="search" defaultValue={v("q")} placeholder="Descripción o notas" className={inputCls} /></Field>
-      <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
-        <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
-        <Link href={action} className="rounded-md border border-border px-4 py-2 text-sm">Limpiar</Link>
+      <div className="col-span-2 lg:col-span-1"><Field label="Buscar" id="f-q"><input id="f-q" name="q" type="search" defaultValue={v("q")} placeholder="Descripción o notas" autoComplete="off" enterKeyHint="search" className={inputCls} /></Field></div>
+      <div className="col-span-2 flex items-end gap-2 lg:col-span-4">
+        <button type="submit" className="btn btn-primary">Filtrar</button>
+        <Link href={action} className="btn btn-secondary">Limpiar</Link>
       </div>
-    </form>
+    </form></div>
   );
 }
 
@@ -74,11 +74,11 @@ export function Pagination({ basePath, sp, page, pageSize, total }: { basePath: 
     return `${basePath}?${qs}`;
   };
   return (
-    <nav aria-label="Paginación" className="mt-4 flex items-center justify-between text-sm">
+    <nav aria-label="Paginación" className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
       <span className="text-muted">{total} movimientos · página {page} de {pages}</span>
       <span className="flex gap-2">
-        {page > 1 && <Link href={href(page - 1)} className="rounded-md border border-border px-3 py-1.5">Anterior</Link>}
-        {page < pages && <Link href={href(page + 1)} className="rounded-md border border-border px-3 py-1.5">Siguiente</Link>}
+        {page > 1 && <Link href={href(page - 1)} className="btn btn-secondary btn-sm">Anterior</Link>}
+        {page < pages && <Link href={href(page + 1)} className="btn btn-secondary btn-sm">Siguiente</Link>}
       </span>
     </nav>
   );

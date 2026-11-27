@@ -47,30 +47,30 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         <span className="text-muted">Consolidar en:</span>
         {[["", "Sin consolidar"], ...CURRENCIES.map((c) => [c, c])].map(([b, label]) => (
           <Link key={b} href={keep(b)} aria-current={(base ?? "") === b ? "page" : undefined}
-            className={`rounded-md border px-3 py-1.5 ${(base ?? "") === b ? "border-primary bg-primary text-white" : "border-border bg-surface"}`}>{label}</Link>
+            className="pill">{label}</Link>
         ))}
       </nav>
 
       <NetWorthPanel nw={nw} />
 
-      <section aria-labelledby="evo" className="mb-6 rounded-xl border border-border bg-surface p-4">
-        <h2 id="evo" className="mb-1 text-base font-semibold">Evolución del patrimonio neto (12 meses)</h2>
+      <section aria-labelledby="evo" className="card mb-8">
+        <h2 id="evo" className="mb-1 section-title">Evolución del patrimonio neto (12 meses)</h2>
         <p className="mb-3 text-xs text-muted">
           Calculado al cierre de cada mes con movimientos, valoraciones y préstamos fechados hasta ese día. Usa las cuentas y bienes registrados hoy;
           las cuentas archivadas siguen contando mientras tengan saldo.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {CURRENCIES.map((c) => <Sparkline key={c} values={evolution.map((p) => p.byCurrency[c].net)} label={`Patrimonio neto en ${c} por mes`} />)}
         </div>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Tabla de evolución del patrimonio neto">
+          <table className="data-table compact">
             <caption className="sr-only">Patrimonio neto al cierre de cada mes, por moneda</caption>
-            <thead><tr className="text-left text-xs text-muted"><th scope="col" className="py-1 pr-3 font-medium">Al cierre de</th>{CURRENCIES.map((c) => <th key={c} scope="col" className="py-1 pr-3 text-right font-medium">Neto {c}</th>)}</tr></thead>
+            <thead><tr><th scope="col">Al cierre de</th>{CURRENCIES.map((c) => <th key={c} scope="col" className="num">Neto {c}</th>)}</tr></thead>
             <tbody>
               {evolution.map((p) => (
-                <tr key={p.date} className="border-t border-border">
-                  <th scope="row" className="py-1 pr-3 text-left font-normal">{fmtDate(p.date)}</th>
-                  {CURRENCIES.map((c) => <td key={c} className="py-1 pr-3 text-right">{formatMoney(p.byCurrency[c].net, c)}</td>)}
+                <tr key={p.date}>
+                  <th scope="row">{fmtDate(p.date)}</th>
+                  {CURRENCIES.map((c) => <td key={c} className="num">{formatMoney(p.byCurrency[c].net, c)}</td>)}
                 </tr>
               ))}
             </tbody>
@@ -81,7 +81,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       <Disclosure summary="Nuevo bien" className="mb-6">
         <ActionForm action={createAssetAction} submit="Registrar" resetOnSuccess>
           <input type="hidden" name="idempotencyKey" value={formKey} />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nombre" id="as-name"><input id="as-name" name="name" required maxLength={120} className={inputCls} /></Field>
             <Field label="Categoría" id="as-type">
               <select id="as-type" name="type" required defaultValue="other" className={inputCls}>
@@ -100,7 +100,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         </ActionForm>
       </Disclosure>
 
-      <form method="get" action="/patrimonio" className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-4">
+      <form method="get" action="/patrimonio" className="mb-4 grid gap-3 card sm:grid-cols-4">
         {base && <input type="hidden" name="base" value={base} />}
         <Field label="Categoría" id="af-tipo">
           <select id="af-tipo" name="tipo" defaultValue={v("tipo")} className={inputCls}>
@@ -116,8 +116,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           <select id="af-moneda" name="moneda" defaultValue={v("moneda")} className={inputCls}><Options placeholder="Todas" items={CURRENCIES.map((c) => ({ value: c, label: c }))} /></select>
         </Field>
         <div className="flex items-end gap-2">
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
-          <Link href={keep(base)} className="rounded-md border border-border px-4 py-2 text-sm">Limpiar</Link>
+          <button type="submit" className="btn btn-primary">Filtrar</button>
+          <Link href={keep(base)} className="btn btn-secondary">Limpiar</Link>
         </div>
       </form>
 
@@ -128,8 +128,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           const group = assets.filter((a) => a.type === t);
           return group.length === 0 ? null : (
             <section key={t} aria-labelledby={`g-${t}`} className="mb-6">
-              <h2 id={`g-${t}`} className="mb-3 text-base font-semibold">{ASSET_TYPE_LABEL[t]}</h2>
-              <ul className="grid gap-3 lg:grid-cols-2">{group.map((a) => <AssetCard key={a.id} a={a} />)}</ul>
+              <h2 id={`g-${t}`} className="mb-3 section-title">{ASSET_TYPE_LABEL[t]}</h2>
+              <ul className="grid gap-4 lg:grid-cols-2">{group.map((a) => <AssetCard key={a.id} a={a} />)}</ul>
             </section>
           );
         })

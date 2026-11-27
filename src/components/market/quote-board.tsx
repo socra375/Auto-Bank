@@ -49,58 +49,60 @@ export function QuoteBoard({ initialRows, loadedAt, scope, empty }: { initialRow
     });
   };
 
-  if (rows.length === 0) return <p className="rounded-xl border border-dashed border-border bg-surface p-6 text-center text-sm text-muted">{empty ?? "No hay símbolos."}</p>;
+  if (rows.length === 0) return <p className="rounded-xl border border-dashed border-border-strong/60 bg-surface p-8 text-center text-sm text-muted">{empty ?? "No hay símbolos."}</p>;
   const noProvider = rows.every((r) => r.quote.reason === "not_configured");
 
   return (
     <div>
       {noProvider && (
-        <p role="status" className="mb-3 rounded-md border border-border bg-surface px-3 py-2 text-sm">
+        <p role="status" className="card-flat mb-4 px-4 py-3 text-sm">
           No hay proveedor de datos configurado, así que no se muestra ninguna cotización. Configura <code>MARKET_PROVIDER=twelvedata</code> y{" "}
           <code>MARKET_API_KEY</code> en el servidor. No se inventan precios.
         </p>
       )}
-      {err && <p role="alert" className="mb-3 rounded-md border border-negative px-3 py-2 text-sm text-negative">{err}</p>}
-      <p className="mb-2 text-xs text-muted">Última actualización: {fmtTs(refreshedAt)} (America/Santo_Domingo). Se actualiza cada minuto mientras la pestaña esté visible.</p>
+      {err && <p role="alert" className="mb-4 rounded-lg border border-negative bg-negative-soft px-4 py-3 text-sm text-negative">{err}</p>}
+      <p className="mb-3 text-xs text-muted">Última actualización: {fmtTs(refreshedAt)} (America/Santo_Domingo). Se actualiza cada minuto mientras la pestaña esté visible.</p>
 
-      <table className="hidden w-full text-sm md:table">
-        <caption className="sr-only">Cotizaciones</caption>
-        <thead>
-          <tr className="border-b border-border text-left text-xs text-muted">
-            <th scope="col" className="py-2 pr-2 font-medium"><span className="sr-only">Favorito</span></th>
-            <th scope="col" className="py-2 pr-3 font-medium">Símbolo</th>
-            <th scope="col" className="py-2 pr-3 text-right font-medium">Precio</th>
-            <th scope="col" className="py-2 pr-3 text-right font-medium">Variación</th>
-            <th scope="col" className="py-2 pr-3 text-right font-medium">Máx. / Mín.</th>
-            <th scope="col" className="py-2 pr-3 text-right font-medium">Volumen</th>
-            <th scope="col" className="py-2 pr-3 font-medium">Estado</th>
-            <th scope="col" className="py-2 font-medium">Hora del proveedor</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.symbol} className="border-b border-border align-top">
-              <td className="py-2 pr-2"><StarButton row={r} onToggle={star} /></td>
-              <td className="py-2 pr-3"><SymbolLink r={r} /></td>
-              <td className="py-2 pr-3 text-right font-semibold">{fmtNum(r.quote.price)}{r.quote.currency && r.quote.price !== null && <span className="ml-1 text-xs font-normal text-muted">{r.quote.currency}</span>}</td>
-              <td className="py-2 pr-3 text-right"><Change q={r.quote} /></td>
-              <td className="py-2 pr-3 text-right">{r.quote.high === null && r.quote.low === null ? "—" : `${fmtNum(r.quote.high)} / ${fmtNum(r.quote.low)}`}</td>
-              <td className="py-2 pr-3 text-right">{fmtVolume(r.quote.volume)}</td>
-              <td className="py-2 pr-3"><StatusBadge status={r.quote.status} /><Reason r={r} /></td>
-              <td className="py-2 text-xs text-muted">{fmtTs(r.quote.providerTs)}</td>
+      <div role="region" tabIndex={0} aria-label="Tabla de cotizaciones" className="table-wrap card-flat shadow-[var(--shadow-card)] hidden md:block">
+        <table className="data-table">
+          <caption className="sr-only">Cotizaciones</caption>
+          <thead>
+            <tr>
+              <th scope="col"><span className="sr-only">Favorito</span></th>
+              <th scope="col">Símbolo</th>
+              <th scope="col" className="num">Precio</th>
+              <th scope="col" className="num">Variación</th>
+              <th scope="col" className="num">Máx. / Mín.</th>
+              <th scope="col" className="num">Volumen</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Hora del proveedor</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.symbol} className="align-top">
+                <td className="!pr-0"><StarButton row={r} onToggle={star} /></td>
+                <td><SymbolLink r={r} /></td>
+                <td className="num font-semibold">{fmtNum(r.quote.price)}{r.quote.currency && r.quote.price !== null && <span className="ml-1 text-xs font-normal text-muted">{r.quote.currency}</span>}</td>
+                <td className="num"><Change q={r.quote} /></td>
+                <td className="num">{r.quote.high === null && r.quote.low === null ? "—" : `${fmtNum(r.quote.high)} / ${fmtNum(r.quote.low)}`}</td>
+                <td className="num">{fmtVolume(r.quote.volume)}</td>
+                <td><StatusBadge status={r.quote.status} /><Reason r={r} /></td>
+                <td className="text-xs text-muted">{fmtTs(r.quote.providerTs)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      <ul className="grid gap-3 md:hidden">
+      <ul className="grid gap-4 sm:grid-cols-2 md:hidden">
         {rows.map((r) => (
-          <li key={r.symbol} className="rounded-xl border border-border bg-surface p-3">
+          <li key={r.symbol} className="card !p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex min-w-0 items-center gap-1"><StarButton row={r} onToggle={star} /><SymbolLink r={r} /></div>
               <StatusBadge status={r.quote.status} />
             </div>
-            <p className="mt-2 text-xl font-semibold">{fmtNum(r.quote.price)}{r.quote.currency && r.quote.price !== null && <span className="ml-1 text-xs font-normal text-muted">{r.quote.currency}</span>}</p>
+            <p className="amount mt-2 text-2xl">{fmtNum(r.quote.price)}{r.quote.currency && r.quote.price !== null && <span className="ml-1 text-xs font-normal text-muted">{r.quote.currency}</span>}</p>
             <p className="text-sm"><Change q={r.quote} /></p>
             {(r.quote.high !== null || r.quote.low !== null || r.quote.volume !== null) && (
               <p className="mt-1 text-xs text-muted">
@@ -120,7 +122,7 @@ const REFRESH_FAIL = () => "No se pudieron actualizar las cotizaciones ahora. Se
 
 function SymbolLink({ r }: { r: MarketRow }) {
   return (
-    <Link href={`/mercados?simbolo=${encodeURIComponent(r.symbol)}`} className="block min-w-0 underline-offset-2 hover:underline">
+    <Link href={`/mercados?simbolo=${encodeURIComponent(r.symbol)}`} className="block min-w-0 py-2 underline-offset-2 hover:text-primary hover:underline">
       <span className="block truncate font-semibold">{r.name}</span>
       {r.name !== r.symbol && <span className="block text-xs text-muted">{r.symbol}</span>}
     </Link>
@@ -137,9 +139,9 @@ export function StarButton({ row, onToggle }: { row: { symbol: string; favorite:
     <button
       type="button" onClick={() => onToggle(row.symbol)} aria-pressed={row.favorite}
       aria-label={row.favorite ? `Quitar ${row.symbol} de favoritos` : `Agregar ${row.symbol} a favoritos`}
-      className="rounded-md p-1.5 hover:bg-bg"
+      className="icon-btn"
     >
-      <Star className={`size-4 ${row.favorite ? "fill-current text-primary" : "text-muted"}`} aria-hidden />
+      <Star className={`size-5 ${row.favorite ? "fill-current text-primary" : "text-muted"}`} aria-hidden />
     </button>
   );
 }

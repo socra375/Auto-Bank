@@ -33,29 +33,29 @@ export function SymbolDetail({ symbol, name }: { symbol: string; name: string })
   const series = loading ? undefined : state.series;
   const candles = series?.status === "ok" ? series.candles : [];
   const last = candles.at(-1);
-  const sel = "rounded-md border px-3 py-1.5 text-sm";
-  const on = "border-primary bg-primary text-white", off = "border-border bg-surface";
+  const sel = "pill";
+  const on = "", off = "";
 
   return (
-    <section aria-labelledby="det" className="rounded-xl border border-border bg-surface p-4">
-      <h2 id="det" className="text-lg font-semibold">{name}{name !== symbol && <span className="ml-2 text-sm font-normal text-muted">{symbol}</span>}</h2>
-      <div className="mt-3 flex flex-wrap gap-4">
-        <div role="group" aria-label="Intervalo" className="flex flex-wrap gap-1">
+    <section aria-labelledby="det" className="card">
+      <h2 id="det" className="section-title">{name}{name !== symbol && <span className="ml-2 text-sm font-normal text-muted">{symbol}</span>}</h2>
+      <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
+        <div role="group" aria-label="Intervalo" className="flex flex-wrap gap-2">
           {INTERVALS.map((i) => <button key={i} type="button" aria-pressed={i === interval} onClick={() => setInterval_(i)} className={`${sel} ${i === interval ? on : off}`}>{INTERVAL_LABEL[i]}</button>)}
         </div>
-        <div role="group" aria-label="Cantidad de velas" className="flex flex-wrap gap-1">
+        <div role="group" aria-label="Cantidad de velas" className="flex flex-wrap gap-2">
           {RANGES.map((r) => <button key={r} type="button" aria-pressed={r === range} onClick={() => setRange(r)} className={`${sel} ${r === range ? on : off}`}>{r} velas</button>)}
         </div>
-        <div role="group" aria-label="Vista" className="flex flex-wrap gap-1">
+        <div role="group" aria-label="Vista" className="flex flex-wrap gap-2">
           {(Object.keys(VIEW_LABEL) as View[]).map((v) => <button key={v} type="button" aria-pressed={v === view} onClick={() => setView(v)} className={`${sel} ${v === view ? on : off}`}>{VIEW_LABEL[v]}</button>)}
         </div>
       </div>
 
       <div className="mt-4" aria-live="polite">
         {loading && <LoadingState label="Cargando histórico…" />}
-        {!loading && (state.failed || !series) && <p className="rounded-md border border-border p-4 text-sm text-muted">No se pudo cargar el histórico ahora. Inténtalo de nuevo en un momento.</p>}
+        {!loading && (state.failed || !series) && <p className="rounded-lg border border-border bg-surface-2 p-4 text-sm text-muted">No se pudo cargar el histórico ahora. Inténtalo de nuevo en un momento.</p>}
         {!loading && series && series.status === "unavailable" && (
-          <p className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted">
+          <p className="rounded-lg border border-dashed border-border-strong/60 p-6 text-center text-sm text-muted">
             Histórico no disponible. {reasonText(series) ?? ""} No se muestra ningún dato inventado.
           </p>
         )}
@@ -76,19 +76,19 @@ export function SymbolDetail({ symbol, name }: { symbol: string; name: string })
 function HistoryTable({ candles }: { candles: CandleSeries["candles"] }) {
   const rows = [...candles].reverse().slice(0, 200);
   return (
-    <div className="max-h-96 overflow-auto">
-      <table className="w-full text-sm">
+    <div role="region" tabIndex={0} aria-label="Tabla de velas" className="table-wrap max-h-96">
+      <table className="data-table compact">
         <caption className="sr-only">Velas OHLC, de la más reciente a la más antigua</caption>
-        <thead className="sticky top-0 bg-surface text-xs text-muted">
-          <tr>{["Fecha", "Apertura", "Máximo", "Mínimo", "Cierre", "Volumen"].map((h, i) => <th key={h} scope="col" className={`py-1 pr-3 font-medium ${i ? "text-right" : "text-left"}`}>{h}</th>)}</tr>
+        <thead>
+          <tr>{["Fecha", "Apertura", "Máximo", "Mínimo", "Cierre", "Volumen"].map((h, i) => <th key={h} scope="col" className={i ? "num" : undefined}>{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((c) => (
-            <tr key={c.t} className="border-t border-border">
-              <th scope="row" className="py-1 pr-3 text-left font-normal">{fmtTs(new Date(c.t * 1000).toISOString())}</th>
-              <td className="py-1 pr-3 text-right">{fmtNum(c.o)}</td><td className="py-1 pr-3 text-right">{fmtNum(c.h)}</td>
-              <td className="py-1 pr-3 text-right">{fmtNum(c.l)}</td><td className="py-1 pr-3 text-right">{fmtNum(c.c)}</td>
-              <td className="py-1 text-right">{fmtVolume(c.v)}</td>
+            <tr key={c.t}>
+              <th scope="row">{fmtTs(new Date(c.t * 1000).toISOString())}</th>
+              <td className="num">{fmtNum(c.o)}</td><td className="num">{fmtNum(c.h)}</td>
+              <td className="num">{fmtNum(c.l)}</td><td className="num">{fmtNum(c.c)}</td>
+              <td className="num">{fmtVolume(c.v)}</td>
             </tr>
           ))}
         </tbody>

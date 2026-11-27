@@ -36,26 +36,26 @@ export function SearchBox({ lists }: { lists: { id: string; name: string }[] }) 
 
   const shown = q.trim() ? res : null;
   return (
-    <section aria-labelledby="mk-search" className="mb-4">
-      <label id="mk-search" htmlFor="mk-q" className="mb-1 block text-sm font-medium">Buscar símbolo</label>
-      <input id="mk-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={40} autoComplete="off" placeholder="Ej.: AAPL, Bitcoin, EUR/USD" className={inputCls} />
+    <section aria-labelledby="mk-search" className="card mb-4 !p-4">
+      <label id="mk-search" htmlFor="mk-q" className="field-label">Buscar símbolo</label>
+      <input id="mk-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} maxLength={40} autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" placeholder="Ej.: AAPL, Bitcoin, EUR/USD" className={inputCls} />
       <div aria-live="polite" className="mt-2 text-sm">
         {msg && <p className="mb-2 text-muted">{msg}</p>}
         {shown?.reason && <p className="text-muted">{REASON_TEXT[shown.reason]}</p>}
         {shown && !shown.reason && shown.hits.length === 0 && <p className="text-muted">Sin resultados del proveedor.</p>}
         {shown && shown.hits.length > 0 && (
-          <ul className="divide-y divide-border rounded-xl border border-border bg-surface">
+          <ul className="card-flat divide-y divide-border overflow-hidden">
             {shown.hits.map((h) => (
-              <li key={`${h.symbol}-${h.exchange}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+              <li key={`${h.symbol}-${h.exchange}`} className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5">
                 <Link href={`/mercados?simbolo=${encodeURIComponent(h.symbol)}`} className="min-w-0 underline-offset-2 hover:underline">
                   <span className="font-semibold">{h.symbol}</span> <span className="text-muted">{h.name}{h.exchange ? ` · ${h.exchange}` : ""}</span>
                 </Link>
                 <span className="flex items-center gap-2">
-                  <button type="button" disabled={pending} onClick={() => run(toggleFavoriteAction(h.symbol))} aria-label={`Alternar favorito ${h.symbol}`} className="rounded-md p-1.5 hover:bg-bg">
-                    <Star className="size-4 text-muted" aria-hidden />
+                  <button type="button" disabled={pending} onClick={() => run(toggleFavoriteAction(h.symbol))} aria-label={`Alternar favorito ${h.symbol}`} className="icon-btn">
+                    <Star className="size-5" aria-hidden />
                   </button>
                   {lists.length > 0 && (
-                    <select aria-label={`Agregar ${h.symbol} a una lista`} defaultValue="" disabled={pending} className="rounded-md border border-border bg-surface px-2 py-1 text-sm"
+                    <select aria-label={`Agregar ${h.symbol} a una lista`} defaultValue="" disabled={pending} className="field-input !w-auto text-sm"
                       onChange={(e) => { if (e.target.value) run(addWatchlistItemAction(e.target.value, h.symbol)); e.target.value = ""; }}>
                       <option value="">Agregar a lista…</option>
                       {lists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}

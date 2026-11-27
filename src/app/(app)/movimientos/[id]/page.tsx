@@ -56,8 +56,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <PageHeader title={m.description} description={`${TYPE_LABEL[m.type] ?? m.type} · ${fmtDate(m.date)} · ${statusLabel(m)}`} />
       <Link href="/movimientos" className="mb-4 inline-block text-sm text-primary underline">← Volver a movimientos</Link>
 
-      <section aria-labelledby="legs" className="mb-6 rounded-xl border border-border bg-surface p-4">
-        <h2 id="legs" className="mb-3 text-base font-semibold">Detalle contable</h2>
+      <section aria-labelledby="legs" className="mb-6 card">
+        <h2 id="legs" className="mb-3 section-title">Detalle contable</h2>
         <ul className="divide-y divide-border text-sm">
           {m.legs.map((l, i) => (
             <li key={i} className="flex flex-wrap items-center justify-between gap-2 py-2">
@@ -121,8 +121,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
-      <section aria-labelledby="history" className="rounded-xl border border-border bg-surface p-4">
-        <h2 id="history" className="mb-3 text-base font-semibold">Historial de modificaciones</h2>
+      <section aria-labelledby="history" className="card">
+        <h2 id="history" className="mb-3 section-title">Historial de modificaciones</h2>
         <ol className="space-y-2 text-sm">
           {m.history.map((h) => (
             <li key={h.id}>
