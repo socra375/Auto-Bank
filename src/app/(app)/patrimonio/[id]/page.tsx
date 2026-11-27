@@ -42,8 +42,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <PageHeader title={a.name} description={`${ASSET_TYPE_LABEL[a.type]} · ${a.currency}${disposed ? ` · De baja el ${a.disposedOn ? fmtDate(a.disposedOn) : ""}` : ""}`} />
       <div className="mb-4 text-sm"><Link href="/patrimonio" className="text-primary underline">← Volver a patrimonio</Link></div>
 
-      <section aria-labelledby="resumen" className="mb-6 rounded-xl border border-border bg-surface p-4">
-        <h2 id="resumen" className="mb-3 text-base font-semibold">Resumen</h2>
+      <section aria-labelledby="resumen" className="mb-6 card">
+        <h2 id="resumen" className="mb-3 section-title">Resumen</h2>
         <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <div><dt className="text-xs text-muted">Valor actual</dt><dd className="font-semibold">{a.currentValueMinor === null ? "—" : money(a.currentValueMinor)}</dd></div>
           <div><dt className="text-xs text-muted">Valorado el</dt><dd>{a.currentValuedOn ? fmtDate(a.currentValuedOn) : "—"}</dd></div>
@@ -60,7 +60,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <ActionForm action={addValuationAction.bind(null, id)} submit="Registrar valoración" resetOnSuccess>
               <input type="hidden" name="idempotencyKey" value={formKey} />
               <p className="text-xs text-muted">No se modifica ninguna valoración anterior: se agrega una nueva. Puedes registrar una fecha pasada; el valor actual es el de la fecha más reciente.</p>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={`Valor (${a.currency})`} id="va-value"><input id="va-value" name="value" required inputMode="decimal" placeholder="0.00" className={inputCls} /></Field>
                 <Field label="Fecha de valoración" id="va-date"><input id="va-date" name="valuedOn" type="date" required max={todayDR()} defaultValue={todayDR()} className={inputCls} /></Field>
                 <Field label="Fuente (opcional)" id="va-source"><input id="va-source" name="source" maxLength={100} placeholder="tasación, estimado propio…" className={inputCls} /></Field>
@@ -84,8 +84,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </section>
       )}
 
-      <section aria-labelledby="vals" className="mb-6 rounded-xl border border-border bg-surface p-4">
-        <h2 id="vals" className="mb-3 text-base font-semibold">Historial de valoraciones</h2>
+      <section aria-labelledby="vals" className="mb-6 card">
+        <h2 id="vals" className="mb-3 section-title">Historial de valoraciones</h2>
         <ValuationChart points={chartPoints} currency={a.currency} />
         <ul className="divide-y divide-border text-sm">
           {valuations.map((v, i) => (
@@ -97,8 +97,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </ul>
       </section>
 
-      <section aria-labelledby="hist" className="rounded-xl border border-border bg-surface p-4">
-        <h2 id="hist" className="mb-3 text-base font-semibold">Historial de modificaciones</h2>
+      <section aria-labelledby="hist" className="card">
+        <h2 id="hist" className="mb-3 section-title">Historial de modificaciones</h2>
         <ol className="space-y-2 text-sm">
           {history.map((h) => (
             <li key={h.id}>

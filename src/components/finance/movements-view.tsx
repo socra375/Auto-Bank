@@ -42,7 +42,7 @@ export async function MovementsView({
         {active.length === 0 ? (
           <EmptyState title="Primero crea una cuenta" description="Necesitas al menos una cuenta activa para registrar movimientos." />
         ) : missingCategories ? (
-          <p className="rounded-xl border border-border bg-surface p-4 text-sm">
+          <p className="card text-sm">
             Aún no tienes categorías de {fixedType === "income" ? "ingresos" : "gastos"}. <Link href="/categorias" className="text-primary underline">Crea o carga categorías</Link>.
           </p>
         ) : (

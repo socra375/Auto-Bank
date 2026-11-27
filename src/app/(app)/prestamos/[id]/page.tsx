@@ -51,9 +51,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <Link href={`/prestamos?persona=${encodeURIComponent(l.counterparty)}`} className="text-primary underline">Historial con {l.counterparty}</Link>
       </div>
 
-      <section aria-labelledby="resumen" className="mb-6 rounded-xl border border-border bg-surface p-4">
+      <section aria-labelledby="resumen" className="mb-6 card">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 id="resumen" className="text-base font-semibold">Resumen</h2>
+          <h2 id="resumen" className="section-title">Resumen</h2>
           <StatusBadge status={l.status} />
         </div>
         <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -69,7 +69,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {l.notes && <p className="mt-1 text-sm text-muted">Notas: {l.notes}</p>}
       </section>
 
-      {cancelled && <p className="mb-6 rounded-xl border border-border bg-surface p-4 text-sm text-muted">Préstamo cancelado: no cuenta en tus totales ni admite nuevos pagos.</p>}
+      {cancelled && <p className="mb-6 card text-sm text-muted">Préstamo cancelado: no cuenta en tus totales ni admite nuevos pagos.</p>}
       {canCancel && (
         <section className="mb-6 max-w-md">
           <Disclosure summary="Cancelar préstamo">
@@ -88,7 +88,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ) : (
             <ActionForm action={registerPaymentAction.bind(null, id)} submit={receivable ? "Registrar cobro" : "Registrar pago"} resetOnSuccess>
               <input type="hidden" name="idempotencyKey" value={formKey} />
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={`Cuenta (${l.currency})`} id="pg-account">
                   <select id="pg-account" name="accountId" required defaultValue={l.accountId && accounts.some((a) => a.id === l.accountId) ? l.accountId : accounts[0].id} className={inputCls}>
                     {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -108,8 +108,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </Disclosure>
       </section>}
 
-      <section aria-labelledby="movs" className="mb-6 rounded-xl border border-border bg-surface p-4">
-        <h2 id="movs" className="mb-3 text-base font-semibold">Movimientos del préstamo</h2>
+      <section aria-labelledby="movs" className="mb-6 card">
+        <h2 id="movs" className="mb-3 section-title">Movimientos del préstamo</h2>
         {movements.length === 0 ? (
           <p className="text-sm text-muted">Sin movimientos de dinero todavía.</p>
         ) : (
@@ -147,8 +147,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         )}
       </section>
 
-      <section aria-labelledby="hist" className="rounded-xl border border-border bg-surface p-4">
-        <h2 id="hist" className="mb-3 text-base font-semibold">Historial de modificaciones</h2>
+      <section aria-labelledby="hist" className="card">
+        <h2 id="hist" className="mb-3 section-title">Historial de modificaciones</h2>
         <ol className="space-y-2 text-sm">
           {history.map((h) => (
             <li key={h.id}>

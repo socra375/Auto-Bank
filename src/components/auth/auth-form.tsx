@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { AlertCircle } from "lucide-react";
 import type { FormState } from "@/lib/auth/actions";
 
 type Field = { name: string; label: string; type: string; autoComplete: string };
@@ -16,25 +17,26 @@ export function AuthForm({
 }) {
   const [state, formAction, pending] = useActionState(action, null);
   return (
-    <form action={formAction} className="space-y-4" noValidate={false}>
+    <form action={formAction} className="space-y-5">
       {fields.map((f) => (
         <div key={f.name}>
-          <label htmlFor={f.name} className="mb-1 block text-sm font-medium">{f.label}</label>
+          <label htmlFor={f.name} className="field-label">{f.label}</label>
           <input
             id={f.name} name={f.name} type={f.type} required autoComplete={f.autoComplete}
             disabled={disabled} aria-describedby={state?.error ? "form-error" : undefined}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base disabled:opacity-60"
+            autoCapitalize="none" autoCorrect="off" spellCheck={false} enterKeyHint={f.type === "password" ? "go" : "next"}
+            className="field-input"
           />
         </div>
       ))}
       {state?.error && (
-        <p id="form-error" role="alert" className="rounded-md border border-negative px-3 py-2 text-sm text-negative">
-          {state.error}
+        <p id="form-error" role="alert" className="flex items-start gap-2 rounded-lg border border-negative bg-negative-soft px-3 py-2.5 text-sm text-negative">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />{state.error}
         </p>
       )}
       <button
         type="submit" disabled={pending || disabled}
-        className="w-full rounded-md bg-primary px-4 py-2 font-semibold text-white disabled:opacity-60"
+        className="btn btn-primary w-full"
       >
         {pending ? pendingLabel : submit}
       </button>

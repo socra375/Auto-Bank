@@ -1,5 +1,5 @@
-import { LoadingState } from "@/components/states/states";
+import { PageSkeleton } from "@/components/states/states";
 
 export default function Loading() {
-  return <LoadingState label="Cargando reportes…" />;
+  return <PageSkeleton label="Cargando reportes…" />;
 }

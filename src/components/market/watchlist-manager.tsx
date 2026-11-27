@@ -15,28 +15,28 @@ export function WatchlistManager({ lists, activeId }: { lists: WatchlistRow[]; a
   const [pending, start] = useTransition();
   return (
     <div className="space-y-4">
-      <ActionForm action={createWatchlistAction} submit="Crear lista" resetOnSuccess className="flex flex-wrap items-end gap-2">
+      <ActionForm action={createWatchlistAction} submit="Crear lista" resetOnSuccess className="card flex flex-wrap items-end gap-3 !space-y-0 !p-4">
         <div className="min-w-48 flex-1">
-          <label htmlFor="wl-new" className="mb-1 block text-sm font-medium">Nueva lista</label>
+          <label htmlFor="wl-new" className="field-label">Nueva lista</label>
           <input id="wl-new" name="name" required maxLength={60} className={inputCls} />
         </div>
       </ActionForm>
       {lists.length === 0 && <p className="text-sm text-muted">Aún no tienes listas. Crea una y agrega símbolos desde la búsqueda.</p>}
       <ul className="grid gap-3">
         {lists.map((l) => (
-          <li key={l.id} className={`rounded-xl border bg-surface p-3 ${l.id === activeId ? "border-primary" : "border-border"}`}>
+          <li key={l.id} className={`card !p-4 ${l.id === activeId ? "!border-primary" : ""}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Link href={`/mercados?vista=listas&lista=${l.id}`} className="font-semibold underline-offset-2 hover:underline">{l.name}</Link>
+              <Link href={`/mercados?vista=listas&lista=${l.id}`} className="inline-flex min-h-11 items-center font-semibold underline-offset-2 hover:text-primary hover:underline">{l.name}</Link>
               <span className="text-xs text-muted">{l.symbols.length} símbolo(s)</span>
             </div>
             {l.symbols.length > 0 && (
               <ul className="mt-2 flex flex-wrap gap-2">
                 {l.symbols.map((s) => (
-                  <li key={s} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs">
+                  <li key={s} className="badge badge-neutral !pr-0.5">
                     {s}
-                    <button type="button" disabled={pending} aria-label={`Quitar ${s} de ${l.name}`} className="rounded p-0.5 hover:bg-bg"
+                    <button type="button" disabled={pending} aria-label={`Quitar ${s} de ${l.name}`} className="icon-btn !min-h-9 !min-w-9"
                       onClick={() => start(async () => { await removeWatchlistItemAction(l.id, s); })}>
-                      <Trash2 className="size-3" aria-hidden />
+                      <Trash2 className="size-3.5" aria-hidden />
                     </button>
                   </li>
                 ))}

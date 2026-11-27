@@ -15,8 +15,8 @@ export function NavLink({ item, collapsed, onNavigate }: { item: NavItem; collap
       aria-current={active ? "page" : undefined}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-white/75 hover:bg-white/10 hover:text-white",
-        active && "bg-white/15 text-white",
+        "relative flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-[var(--sidebar-fg)] transition-colors hover:bg-white/10 hover:text-white",
+        active && "bg-white/15 text-white before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-white",
         collapsed && "justify-center px-2",
       )}
     >

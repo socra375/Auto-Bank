@@ -32,15 +32,15 @@ export const REASON_TEXT: Record<Reason, string> = {
 };
 
 const STATUS: Record<QuoteStatus, { label: string; Icon: typeof Radio; cls: string }> = {
-  realtime: { label: "Tiempo real", Icon: Radio, cls: "border-positive text-positive" },
-  delayed: { label: "Retrasada", Icon: Clock, cls: "border-border text-text" },
-  unavailable: { label: "No disponible", Icon: CircleSlash, cls: "border-border text-muted" },
+  realtime: { label: "Tiempo real", Icon: Radio, cls: "badge-positive" },
+  delayed: { label: "Retrasada", Icon: Clock, cls: "badge-info" },
+  unavailable: { label: "No disponible", Icon: CircleSlash, cls: "badge-neutral" },
 };
 
 export function StatusBadge({ status }: { status: QuoteStatus }) {
   const { label, Icon, cls } = STATUS[status];
   return (
-    <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium", cls)}>
+    <span className={cn("badge", cls)}>
       <Icon className="size-3" aria-hidden />{label}
     </span>
   );

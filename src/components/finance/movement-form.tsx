@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ActionForm } from "@/components/ui/action-form";
-import { Field, inputCls } from "@/components/ui/fields";
+import { Field, FieldGroup, inputCls } from "@/components/ui/fields";
 import type { ActionState } from "@/lib/actions/guarded";
 
 export type FormAccount = { id: string; name: string; currency: "DOP" | "USD" };
@@ -50,14 +50,19 @@ export function MovementForm({
         </Field>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <FieldGroup legend="Detalle">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Fecha" id={id("date")}>
           <input id={id("date")} name="date" type="date" required defaultValue={initial?.date ?? today} className={inputCls} />
         </Field>
         <Field label="Descripción" id={id("description")}>
-          <input id={id("description")} name="description" required maxLength={200} defaultValue={initial?.description} className={inputCls} />
+          <input id={id("description")} name="description" required maxLength={200} autoComplete="off" enterKeyHint="next" defaultValue={initial?.description} className={inputCls} />
         </Field>
 
+      </div>
+      </FieldGroup>
+      <FieldGroup legend={type === "transfer" ? "Transferencia" : "Cuenta y monto"}>
+      <div className="grid gap-4 sm:grid-cols-2">
         {type === "transfer" ? (
           <>
             <Field label="Cuenta de origen" id={id("from")}>
@@ -67,15 +72,15 @@ export function MovementForm({
               <select id={id("to")} name="toAccountId" required value={to} onChange={(e) => setTo(e.target.value)} className={inputCls}>{acctOptions}</select>
             </Field>
             <Field label={`Monto enviado${cur(from) ? ` (${cur(from)})` : ""}`} id={id("amount")}>
-              <input id={id("amount")} name="amount" required inputMode="decimal" placeholder="0.00" defaultValue={initial?.amount} className={inputCls} />
+              <input id={id("amount")} name="amount" required inputMode="decimal" enterKeyHint="next" pattern="(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?" title="Usa solo números con hasta 2 decimales. Ej.: 1250.50" autoComplete="off" placeholder="0.00" defaultValue={initial?.amount} className={inputCls} />
             </Field>
             {cross && (
               <>
                 <Field label={`Monto recibido (${cur(to)})`} id={id("amountIn")} hint="Escribe el monto real recibido; no se calcula automáticamente.">
-                  <input id={id("amountIn")} name="amountIn" required inputMode="decimal" placeholder="0.00" defaultValue={initial?.amountIn} aria-describedby={`${id("amountIn")}-hint`} className={inputCls} />
+                  <input id={id("amountIn")} name="amountIn" required inputMode="decimal" enterKeyHint="next" pattern="(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?" title="Usa solo números con hasta 2 decimales. Ej.: 1250.50" autoComplete="off" placeholder="0.00" defaultValue={initial?.amountIn} aria-describedby={`${id("amountIn")}-hint`} className={inputCls} />
                 </Field>
                 <Field label="Tasa de cambio aplicada" id={id("fxRate")} hint="Obligatoria entre monedas distintas (hasta 6 decimales).">
-                  <input id={id("fxRate")} name="fxRate" required inputMode="decimal" placeholder="59.000000" defaultValue={initial?.fxRate} aria-describedby={`${id("fxRate")}-hint`} className={inputCls} />
+                  <input id={id("fxRate")} name="fxRate" required inputMode="decimal" enterKeyHint="next" pattern="\d+(\.\d{1,6})?" title="Usa solo números con hasta 6 decimales. Ej.: 59.250000" autoComplete="off" placeholder="59.000000" defaultValue={initial?.fxRate} aria-describedby={`${id("fxRate")}-hint`} className={inputCls} />
                 </Field>
               </>
             )}
@@ -101,11 +106,12 @@ export function MovementForm({
               </Field>
             )}
             <Field label="Monto" id={id("amount")} hint="Siempre positivo; el signo lo define el tipo.">
-              <input id={id("amount")} name="amount" required inputMode="decimal" placeholder="0.00" defaultValue={initial?.amount} aria-describedby={`${id("amount")}-hint`} className={inputCls} />
+              <input id={id("amount")} name="amount" required inputMode="decimal" enterKeyHint="next" pattern="(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?" title="Usa solo números con hasta 2 decimales. Ej.: 1250.50" autoComplete="off" placeholder="0.00" defaultValue={initial?.amount} aria-describedby={`${id("amount")}-hint`} className={inputCls} />
             </Field>
           </>
         )}
       </div>
+      </FieldGroup>
       <Field label="Notas (opcional)" id={id("notes")}>
         <textarea id={id("notes")} name="notes" rows={2} maxLength={1000} defaultValue={initial?.notes} className={inputCls} />
       </Field>

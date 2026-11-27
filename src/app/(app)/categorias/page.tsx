@@ -47,7 +47,7 @@ export default async function Page() {
     <>
       <PageHeader title="Categorías" description="Clasifican tus ingresos y gastos. Se archivan, nunca se borran." />
       {cats.length === 0 && (
-        <div className="mb-6 rounded-xl border border-border bg-surface p-4">
+        <div className="mb-6 card">
           <p className="mb-3 text-sm">Aún no tienes categorías. Puedes cargar un conjunto sugerido (se puede ejecutar varias veces sin duplicar) o crear las tuyas.</p>
           <ActionForm action={seedCategoriesAction} submit="Cargar categorías sugeridas" />
         </div>
@@ -70,8 +70,8 @@ export default async function Page() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {(["income", "expense"] as const).map((kind) => (
-            <section key={kind} aria-labelledby={`k-${kind}`} className="rounded-xl border border-border bg-surface p-4">
-              <h2 id={`k-${kind}`} className="mb-1 text-base font-semibold">{kind === "income" ? "Ingresos" : "Gastos"}</h2>
+            <section key={kind} aria-labelledby={`k-${kind}`} className="card">
+              <h2 id={`k-${kind}`} className="mb-1 section-title">{kind === "income" ? "Ingresos" : "Gastos"}</h2>
               <ul className="divide-y divide-border">{cats.filter((c) => c.kind === kind).map((c) => <Row key={c.id} c={c} />)}</ul>
             </section>
           ))}

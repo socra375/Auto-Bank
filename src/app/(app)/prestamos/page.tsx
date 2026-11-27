@@ -48,33 +48,33 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
     <>
       <PageHeader title="Préstamos y deudas" description="Prestar no es un gasto ni pedir prestado es un ingreso: solo el interés cuenta como ingreso o gasto. Cada moneda se totaliza por separado." />
 
-      <section aria-label="Resumen por moneda" className="mb-6 grid gap-3 sm:grid-cols-2">
+      <section aria-label="Resumen por moneda" className="mb-6 grid gap-4 sm:grid-cols-2">
         {CURRENCIES.map((c) => (
-          <div key={c} className="rounded-xl border border-border bg-surface p-4">
-            <p className="mb-2 text-sm font-medium">{c}</p>
+          <div key={c} className="card">
+            <div className="mb-3 flex items-center justify-between"><span className="eyebrow">Resumen</span><span className="badge badge-info">{c}</span></div>
             <dl className="grid grid-cols-2 gap-2 text-sm">
-              <div><dt className="text-xs text-muted">Por cobrar</dt><dd className="font-semibold text-positive">{formatMoney(summary.receivable[c], c)}</dd></div>
-              <div><dt className="text-xs text-muted">Por pagar</dt><dd className="font-semibold text-negative">{formatMoney(summary.payable[c], c)}</dd></div>
-              <div><dt className="text-xs text-muted">Interés cobrado</dt><dd>{formatMoney(summary.interestCollected[c], c)}</dd></div>
-              <div><dt className="text-xs text-muted">Interés pagado</dt><dd>{formatMoney(summary.interestPaid[c], c)}</dd></div>
+              <div><dt className="text-xs text-muted">Por cobrar</dt><dd className="amount text-lg pos">{formatMoney(summary.receivable[c], c)}</dd></div>
+              <div><dt className="text-xs text-muted">Por pagar</dt><dd className="amount text-lg neg">{formatMoney(summary.payable[c], c)}</dd></div>
+              <div><dt className="text-xs text-muted">Interés cobrado</dt><dd className="amount">{formatMoney(summary.interestCollected[c], c)}</dd></div>
+              <div><dt className="text-xs text-muted">Interés pagado</dt><dd className="amount">{formatMoney(summary.interestPaid[c], c)}</dd></div>
             </dl>
           </div>
         ))}
       </section>
 
       <section aria-labelledby="due" className="mb-6">
-        <h2 id="due" className="mb-3 text-base font-semibold">Vencidos y próximos a vencer (30 días)</h2>
+        <h2 id="due" className="mb-3 section-title">Vencidos y próximos a vencer (30 días)</h2>
         {due.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border bg-surface px-4 py-6 text-center text-sm text-muted">No hay préstamos vencidos ni por vencer pronto.</p>
+          <p className="rounded-xl border border-dashed border-border-strong/60 bg-surface px-4 py-8 text-center text-sm text-muted">No hay préstamos vencidos ni por vencer pronto.</p>
         ) : (
-          <ul className="grid gap-3 lg:grid-cols-2">{due.map((l) => <LoanCard key={l.id} l={l} />)}</ul>
+          <ul className="grid gap-4 lg:grid-cols-2">{due.map((l) => <LoanCard key={l.id} l={l} />)}</ul>
         )}
       </section>
 
       <Disclosure summary="Nuevo préstamo o deuda" className="mb-6">
         <ActionForm action={createLoanAction} submit="Registrar" resetOnSuccess>
           <input type="hidden" name="idempotencyKey" value={formKey} />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Tipo" id="ln-direction">
               <select id="ln-direction" name="direction" required defaultValue={tab === "pagar" ? "payable" : "receivable"} className={inputCls}>
                 <Options items={[{ value: "receivable", label: "Presté dinero (me deben)" }, { value: "payable", label: "Me prestaron (debo)" }]} />
@@ -96,8 +96,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
               </select>
             </Field>
           </div>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="funded" className="mt-1" />
+          <label className="check">
+            <input type="checkbox" name="funded" />
             <span>El dinero sale/entra de la cuenta ahora. Desmárcalo si es una deuda ya existente (no se mueve dinero).</span>
           </label>
           <Field label="Notas (opcional)" id="ln-notes"><textarea id="ln-notes" name="notes" rows={2} maxLength={1000} className={inputCls} /></Field>
@@ -107,13 +107,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
       <nav aria-label="Tipo de préstamo" className="mb-4 flex gap-2">
         {[["cobrar", "Por cobrar"], ["pagar", "Por pagar"]].map(([t, label]) => (
           <Link key={t} href={tabHref(t)} aria-current={tab === t ? "page" : undefined}
-            className={`rounded-md border px-4 py-2 text-sm font-medium ${tab === t ? "border-primary bg-primary text-white" : "border-border bg-surface"}`}>
+            className="pill">
             {label}
           </Link>
         ))}
       </nav>
 
-      <form method="get" action="/prestamos" className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-4">
+      <form method="get" action="/prestamos" className="mb-4 grid gap-3 card sm:grid-cols-4">
         <input type="hidden" name="tab" value={tab} />
         <Field label="Estado" id="lf-estado">
           <select id="lf-estado" name="estado" defaultValue={v("estado")} className={inputCls}>
@@ -124,13 +124,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           <select id="lf-moneda" name="moneda" defaultValue={v("moneda")} className={inputCls}><Options placeholder="Todas" items={CURRENCIES.map((c) => ({ value: c, label: c }))} /></select>
         </Field>
         <Field label="Persona" id="lf-q"><input id="lf-q" name="q" type="search" defaultValue={v("q")} className={inputCls} /></Field>
-        <label className="flex items-center gap-2 text-sm sm:col-span-4">
+        <label className="check sm:col-span-4">
           <input type="checkbox" name="cancelados" value="1" defaultChecked={v("cancelados") === "1"} />
           Incluir préstamos cancelados
         </label>
         <div className="flex items-end gap-2">
-          <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white">Filtrar</button>
-          <Link href={tabHref(tab)} className="rounded-md border border-border px-4 py-2 text-sm">Limpiar</Link>
+          <button type="submit" className="btn btn-primary">Filtrar</button>
+          <Link href={tabHref(tab)} className="btn btn-secondary">Limpiar</Link>
         </div>
       </form>
 
@@ -140,12 +140,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           description="Registra uno con «Nuevo préstamo o deuda», o ajusta los filtros."
         />
       ) : (
-        <ul className="grid gap-3 lg:grid-cols-2">{loans.map((l) => <LoanCard key={l.id} l={l} />)}</ul>
+        <ul className="grid gap-4 lg:grid-cols-2">{loans.map((l) => <LoanCard key={l.id} l={l} />)}</ul>
       )}
 
       {history && (
-        <section aria-labelledby="persona" className="mt-8 rounded-xl border border-border bg-surface p-4">
-          <h2 id="persona" className="mb-3 text-base font-semibold">Historial con {persona}</h2>
+        <section aria-labelledby="persona" className="mt-8 card">
+          <h2 id="persona" className="mb-3 section-title">Historial con {persona}</h2>
           {history.loans.length === 0 ? (
             <p className="text-sm text-muted">No hay préstamos con esa persona.</p>
           ) : (

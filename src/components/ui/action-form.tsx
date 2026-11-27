@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import type { ActionState } from "@/lib/actions/guarded";
 import { cn } from "@/lib/utils";
 
@@ -22,21 +23,23 @@ export function ActionForm({
     if (resetOnSuccess && state?.ok) ref.current?.reset();
   }, [state, resetOnSuccess]);
   return (
-    <form ref={ref} action={formAction} className={cn("space-y-3", className)}>
+    <form ref={ref} action={formAction} className={cn("space-y-4", className)}>
       {children}
       {state?.error && (
-        <p role="alert" className="rounded-md border border-negative px-3 py-2 text-sm text-negative">{state.error}</p>
+        <p role="alert" className="flex items-start gap-2 rounded-lg border border-negative bg-negative-soft px-3 py-2.5 text-sm text-negative">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden /><span>{state.error}</span>
+        </p>
       )}
-      {state?.ok && <p role="status" className="text-sm text-positive">{state.ok}</p>}
+      {state?.ok && (
+        <p role="status" className="flex items-start gap-2 rounded-lg bg-positive-soft px-3 py-2.5 text-sm text-positive">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /><span>{state.ok}</span>
+        </p>
+      )}
       <button
         type="submit" disabled={pending}
-        className={cn(
-          "rounded-md px-4 py-2 text-sm font-semibold disabled:opacity-60",
-          variant === "primary" && "bg-primary text-white",
-          variant === "danger" && "border border-negative text-negative",
-          variant === "ghost" && "border border-border",
-        )}
+        className={cn("btn", variant === "primary" && "btn-primary", variant === "danger" && "btn-danger", variant === "ghost" && "btn-secondary")}
       >
+        {pending && <Loader2 className="spin size-4" aria-hidden />}
         {pending ? pendingLabel : submit}
       </button>
     </form>

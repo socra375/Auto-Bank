@@ -37,8 +37,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         <PillNav label="Período" items={PERIODS.map((k) => ({ href: href({ periodo: k }), text: PERIOD_LABEL[k], active: k === period }))} />
         <PillNav label="Moneda" items={[{ href: href({ moneda: "" }), text: "Todas", active: !currency }, ...CURRENCIES.map((c) => ({ href: href({ moneda: c }), text: c, active: c === currency }))]} />
       </div>
-      <nav aria-label="Acciones rápidas" className="mb-6 flex flex-wrap gap-2">
-        {QUICK_LINKS.map((q) => <Link key={q.href} href={q.href} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white">{q.label}</Link>)}
+      <nav aria-label="Acciones rápidas" className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        {QUICK_LINKS.map((q) => <Link key={q.href} href={q.href} className="btn btn-primary btn-sm">{q.label}</Link>)}
       </nav>
       {res.failed
         ? <ErrorState title="No se pudo cargar el resumen" description="Inténtalo de nuevo en unos segundos." />
