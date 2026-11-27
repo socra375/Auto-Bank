@@ -217,3 +217,18 @@ describe("net worth", () => {
     expect(ev[2].byCurrency).toEqual((await netWorth(ex, A, { asOf: todayDR() })).byCurrency);
   });
 });
+
+describe("idempotency key vs payload", () => {
+  it("asset and valuation: different payload with the same key fails; same payload returns the first", async () => {
+    const a1 = await house({ idempotencyKey: "asset-key-9001" });
+    await expect(house({ idempotencyKey: "asset-key-9001", initialValue: "5.00" })).rejects.toMatchObject({ code: "KEY_REUSED" });
+    expect((await house({ idempotencyKey: "asset-key-9001" })).id).toBe(a1.id);
+    const v = { value: "2.00", valuedOn: "2026-02-01", idempotencyKey: "val-key-9001" };
+    const v1 = await addValuation(ex, A, a1.id, v);
+    await expect(addValuation(ex, A, a1.id, { ...v, value: "3.00" })).rejects.toMatchObject({ code: "KEY_REUSED" });
+    expect((await addValuation(ex, A, a1.id, v)).id).toBe(v1.id);
+    const a2 = await house();
+    await expect(addValuation(ex, A, a2.id, v)).rejects.toMatchObject({ code: "KEY_REUSED" }); // same key, other asset
+    expect([await count("assets"), await count("asset_valuations")]).toEqual([2, 3]);
+  });
+});

@@ -282,8 +282,10 @@ function scripted(steps: ({ tool: string; input: unknown } | { text: string })[]
     },
   });
 }
-const post = (body: unknown, raw = false) =>
-  new Request("http://localhost/api/eddie/chat", { method: "POST", body: raw ? (body as string) : JSON.stringify(body) });
+const post = (body: unknown, raw = false, headers: Record<string, string> = {}) =>
+  new Request("http://localhost/api/eddie/chat", {
+    method: "POST", body: raw ? (body as string) : JSON.stringify(body), headers: { "content-type": "application/json", ...headers },
+  });
 
 describe("chat route", () => {
   beforeEach(() => { for (let i = 0; i < 20; i++) eddieLimiter.take("drain-noop"); });
@@ -316,6 +318,22 @@ describe("chat route", () => {
     expect((await eddiePost(post({ message: "hi", userId: B }), { model })).status).toBe(400); // strict: no extra fields
     expect((await eddiePost(post({ message: "x".repeat(1001) }), { model })).status).toBe(400);
     expect(model.doStreamCalls).toHaveLength(0);
+  });
+
+  it("rejects non-JSON content types and cross-site origins before the model; same-origin passes", async () => {
+    guard.requireOwner.mockResolvedValue("csrf-user"); // own rate-limit bucket
+    const model = scripted([{ text: "ok" }, { text: "ok" }, { text: "ok" }]);
+    const plain = new Request("http://localhost/api/eddie/chat", { method: "POST", body: '{"message":"x"}', headers: { "content-type": "text/plain" } });
+    expect((await eddiePost(plain, { model })).status).toBe(415);
+    const none = new Request("http://localhost/api/eddie/chat", { method: "POST", body: '{"message":"x"}' });
+    expect((await eddiePost(none, { model })).status).toBe(415);
+    expect((await eddiePost(post({ message: "x" }, false, { origin: "https://evil.example", host: "localhost" }), { model })).status).toBe(403);
+    expect((await eddiePost(post({ message: "x" }, false, { origin: "null" }), { model })).status).toBe(403);
+    expect((await eddiePost(post({ message: "x" }, false, { "sec-fetch-site": "cross-site" }), { model })).status).toBe(403);
+    expect((await eddiePost(post({ message: "x" }, false, { "sec-fetch-site": "same-site" }), { model })).status).toBe(403);
+    expect(model.doStreamCalls).toHaveLength(0);
+    expect((await eddiePost(post({ message: "x" }, false, { origin: "http://localhost", host: "localhost", "sec-fetch-site": "same-origin" }), { model })).status).toBe(200);
+    expect((await eddiePost(post({ message: "x" }), { model })).status).toBe(200); // no Origin: non-browser client
   });
 
   it("rate limits per user with 429 before touching the model", async () => {

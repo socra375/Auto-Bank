@@ -3,6 +3,7 @@ import { audit } from "./audit";
 import { getAccount, type AccountWithBalance } from "./accounts";
 import { getCategory } from "./categories";
 import { DomainError, isUniqueViolation, notFound } from "./errors";
+import { assertSameRequest, requestHash } from "./request-hash";
 import type { Executor, Query, Row } from "./executor";
 import {
   idSchema, movementFiltersSchema, movementMetaSchema, movementSchema,
@@ -15,7 +16,7 @@ export interface Leg { accountId: string; currency: Currency; kind: EntryKind; a
 export interface NewTransaction {
   type: "income" | "expense" | "transfer" | "adjustment" | "loan_disbursement" | "loan_proceeds" | "loan_collection" | "loan_repayment";
   date: string; description: string; notes?: string; categoryId?: string; loanId?: string; fxRate?: string;
-  idempotencyKey?: string; legs: Leg[];
+  idempotencyKey?: string; requestHash?: string; legs: Leg[];
   /** Who originated it (created_by + audit actor). Default 'user'. */
   actor?: "user" | "eddie";
 }
@@ -29,9 +30,9 @@ export interface NewTransaction {
  */
 export async function postTransaction(q: Query, userId: string, t: NewTransaction): Promise<string> {
   const h = await q(
-    `insert into transactions (user_id, type, date, description, notes, category_id, loan_id, fx_rate, idempotency_key, created_by)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id`,
-    [userId, t.type, t.date, t.description, t.notes ?? null, t.categoryId ?? null, t.loanId ?? null, t.fxRate ?? null, t.idempotencyKey ?? null, t.actor ?? "user"],
+    `insert into transactions (user_id, type, date, description, notes, category_id, loan_id, fx_rate, idempotency_key, created_by, request_hash)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning id`,
+    [userId, t.type, t.date, t.description, t.notes ?? null, t.categoryId ?? null, t.loanId ?? null, t.fxRate ?? null, t.idempotencyKey ?? null, t.actor ?? "user", t.requestHash ?? null],
   );
   const id = h.rows[0].id as string;
   for (const l of t.legs) {
@@ -108,27 +109,28 @@ export async function validateMovement(q: Query, userId: string, raw: MovementIn
 }
 
 async function idForKey(q: Query, userId: string, key: string) {
-  const r = await q(`select id from transactions where user_id = $1 and idempotency_key = $2`, [userId, key]);
-  return (r.rows[0]?.id as string | undefined) ?? null;
+  const r = await q(`select id, request_hash from transactions where user_id = $1 and idempotency_key = $2`, [userId, key]);
+  return r.rows[0] ? { id: r.rows[0].id as string, hash: r.rows[0].request_hash as string | null } : null;
 }
 
 /** Creates income / expense / transfer / adjustment in ONE DB transaction. A repeated idempotencyKey returns the first result. */
 export async function createMovement(ex: Executor, userId: string, raw: MovementInput): Promise<{ id: string; duplicate: boolean }> {
   const input = movementSchema.parse(raw);
   const key = input.idempotencyKey;
+  const hash = requestHash("movement", input);
   try {
     return await ex.transaction(async (q) => {
       if (key) {
         const existing = await idForKey(q, userId, key);
-        if (existing) return { id: existing, duplicate: true };
+        if (existing) { assertSameRequest(existing.hash, hash); return { id: existing.id, duplicate: true }; }
       }
-      const id = await postTransaction(q, userId, await buildTransaction(q, userId, input));
+      const id = await postTransaction(q, userId, { ...(await buildTransaction(q, userId, input)), requestHash: hash });
       return { id, duplicate: false };
     });
   } catch (e) {
     if (key && isUniqueViolation(e)) {
       const existing = await idForKey(ex.query, userId, key); // lost a race with the same key
-      if (existing) return { id: existing, duplicate: true };
+      if (existing) { assertSameRequest(existing.hash, hash); return { id: existing.id, duplicate: true }; }
     }
     throw e;
   }

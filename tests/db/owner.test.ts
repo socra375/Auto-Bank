@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
-import { claimIfAllowed, claimOwner, getOwnerId, type Query } from "../../src/lib/auth/owner";
+import { claimIfAllowed, evaluateClaim, claimOwner, getOwnerId, type Query } from "../../src/lib/auth/owner";
 import { makeDb } from "./helpers";
 
 let db: PGlite;
@@ -30,18 +30,36 @@ describe("app_owner", () => {
     expect(r.filter(Boolean)).toHaveLength(1);
   });
   it("a stranger who signs up first cannot claim: only OWNER_EMAIL can", async () => {
-    expect(await claimIfAllowed(q, "stranger", "evil@x.com", "me@x.com")).toBe(false);
+    expect(await claimIfAllowed(q, "stranger", "evil@x.com", "me@x.com", true)).toBe(false);
     expect(await getOwnerId(q)).toBeNull();
-    expect(await claimIfAllowed(q, "me", " ME@x.com ", "me@x.com")).toBe(true);
-    expect(await claimIfAllowed(q, "stranger", "me@x.com", "me@x.com")).toBe(false);
+    expect(await claimIfAllowed(q, "me", " ME@x.com ", "me@x.com", true)).toBe(true);
+    expect(await claimIfAllowed(q, "stranger", "me@x.com", "me@x.com", true)).toBe(false);
   });
   it("fails closed when OWNER_EMAIL is unset", async () => {
-    expect(await claimIfAllowed(q, "me", "me@x.com", undefined)).toBe(false);
+    expect(await claimIfAllowed(q, "me", "me@x.com", undefined, true)).toBe(false);
     expect(await getOwnerId(q)).toBeNull();
   });
+  it("matching email but NOT verified cannot claim (first claim)", async () => {
+    for (const v of [false, null, undefined]) {
+      expect(await claimIfAllowed(q, "me", "me@x.com", "me@x.com", v)).toBe(false);
+    }
+    expect(await evaluateClaim(q, "me", "me@x.com", "me@x.com", false)).toBe("unverified");
+    expect(await getOwnerId(q)).toBeNull();
+  });
+  it("verified + matching email claims; verified but another email does not", async () => {
+    expect(await evaluateClaim(q, "other", "other@x.com", "me@x.com", true)).toBe("denied");
+    expect(await getOwnerId(q)).toBeNull();
+    expect(await evaluateClaim(q, "me", "me@x.com", "me@x.com", true)).toBe("owner");
+    expect(await getOwnerId(q)).toBe("me");
+  });
+  it("once an owner exists only the id matters (verification state is irrelevant)", async () => {
+    await claimIfAllowed(q, "me", "me@x.com", "me@x.com", true);
+    expect(await claimIfAllowed(q, "me", "me@x.com", "me@x.com", false)).toBe(true);
+    expect(await claimIfAllowed(q, "other", "me@x.com", "me@x.com", true)).toBe(false);
+  });
   it("owner keeps access if their email later changes", async () => {
-    await claimIfAllowed(q, "me", "me@x.com", "me@x.com");
-    expect(await claimIfAllowed(q, "me", "new@x.com", "me@x.com")).toBe(true);
+    await claimIfAllowed(q, "me", "me@x.com", "me@x.com", true);
+    expect(await claimIfAllowed(q, "me", "new@x.com", "me@x.com", true)).toBe(true);
   });
   it("the table can never hold more than one row", async () => {
     await claimOwner(q, "user-a");

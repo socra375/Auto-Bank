@@ -1,6 +1,6 @@
 import { createNeonAuth } from "@neon/auth/next/server";
 import { getDb } from "@/db/client";
-import { claimIfAllowed, getOwnerId, type Query } from "./owner";
+import { evaluateClaim, getOwnerId, type Query } from "./owner";
 
 /** Names of required env vars that are missing/invalid (names only, never values). */
 export function missingAuthEnv(): string[] {
@@ -30,5 +30,5 @@ export const dbQuery: Query = async (sql, params) => {
 };
 
 export const ownerExists = async () => (await getOwnerId(dbQuery)) !== null;
-export const claim = (userId: string, email?: string | null) =>
-  claimIfAllowed(dbQuery, userId, email, process.env.OWNER_EMAIL);
+export const claim = (userId: string, email?: string | null, emailVerified?: boolean | null) =>
+  evaluateClaim(dbQuery, userId, email, process.env.OWNER_EMAIL, emailVerified);

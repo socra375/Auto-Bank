@@ -86,6 +86,14 @@ describe("buildReportCsv", () => {
     expect(lines.some((l) => l.endsWith(",USD,income,9.00"))).toBe(true);
     expect(lines.some((l) => l.endsWith(",DOP,expense,-20.00"))).toBe(true);
   });
+  it("movements: a capped export is visibly truncated (last row) and flagged; an uncapped one is not", async () => {
+    const full = await buildReportCsv(ex, A, "movimientos", f);
+    expect(full.truncated).toBe(false);
+    const cut = await buildReportCsv(ex, A, "movimientos", f, 2);
+    expect(cut.truncated).toBe(true);
+    const lines = cut.csv.replace(BOM, "").trim().split("\r\n");
+    expect(lines[lines.length - 1]).toMatch(/^ARCHIVO TRUNCADO: se exportaron 2 de \d+ movimientos/);
+  });
   it("only exports the requested user's data", async () => {
     const { csv } = await buildReportCsv(ex, B, "movimientos", f);
     expect(parse(csv)).toHaveLength(1); // header only
@@ -105,6 +113,7 @@ describe("GET /api/export/[report]", () => {
     const res = await call("ingresos-gastos", "from=2026-03-01&to=2026-03-31");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("text/csv; charset=utf-8");
+    expect(res.headers.get("x-export-truncated")).toBeNull();
     expect(res.headers.get("content-disposition")).toMatch(/^attachment; filename="auto-bank-ingresos-gastos-2026-03-01_2026-03-31\.csv"$/);
     const bytes = new Uint8Array(await res.clone().arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]); // text() would strip the BOM, so check raw bytes

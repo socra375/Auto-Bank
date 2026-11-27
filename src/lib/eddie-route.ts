@@ -34,9 +34,30 @@ function proposalIds(parts: readonly { type: string; state?: string; output?: un
     .filter((x): x is string => typeof x === "string");
 }
 
+/**
+ * CSRF defence in depth for the cookie-authenticated POST: JSON only (a cross-site form cannot send it without a preflight)
+ * and same-origin only. An absent Origin is accepted ONLY when Sec-Fetch-Site is also absent or "same-origin": browsers always
+ * send Origin on cross-origin POSTs, so that case is a non-browser client (curl, server-to-server), which has no ambient cookies.
+ */
+export function isSameOriginJson(request: Request): { ok: true } | { ok: false; status: 415 | 403 } {
+  if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return { ok: false, status: 415 };
+  const site = request.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin") return { ok: false, status: 403 };
+  const origin = request.headers.get("origin");
+  if (origin !== null) {
+    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? new URL(request.url).host;
+    let originHost: string | null = null;
+    try { originHost = new URL(origin).host; } catch { /* "null" or junk */ }
+    if (originHost !== host.split(",")[0].trim()) return { ok: false, status: 403 };
+  }
+  return { ok: true };
+}
+
 /** requireOwner() FIRST, then rate limit, size cap, Zod; only then the model. */
 export async function eddiePost(request: Request, deps: EddieDeps = {}): Promise<Response> {
   const userId = await requireOwner();
+  const origin = isSameOriginJson(request);
+  if (!origin.ok) return json(origin.status, { error: origin.status === 415 ? "Content-Type debe ser application/json." : "Origen no permitido." });
   if (!eddieLimiter.take(userId)) return json(429, { error: "Demasiados mensajes. Espera unos segundos." });
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_BODY_BYTES) return json(413, { error: "Mensaje demasiado largo." });

@@ -351,3 +351,16 @@ describe("exchange rates / consolidate", () => {
     await expect(saveRate(ex, A, { base: "USD", quote: "DOP", rate: "-3", date: "2026-02-01" })).rejects.toThrow();
   });
 });
+
+describe("idempotency key vs payload", () => {
+  it("same key + different payload fails (nothing posted); same payload still returns the first result", async () => {
+    const a = await acct(A, "A", "DOP", "0");
+    const inc = await cat(A, "S", "income");
+    const input = { type: "income", accountId: a, categoryId: inc, amount: "10", date: "2026-02-01", description: "x", idempotencyKey: "key-payload-1" } as const;
+    const r1 = await createMovement(ex, A, input);
+    await expect(createMovement(ex, A, { ...input, amount: "15" })).rejects.toMatchObject({ code: "KEY_REUSED", message: expect.stringMatching(/clave de envío/) });
+    expect(await createMovement(ex, A, input)).toEqual({ id: r1.id, duplicate: true });
+    expect(await bal(A, a)).toBe(1000n);
+    expect(await count("transactions")).toBe(1);
+  });
+});
