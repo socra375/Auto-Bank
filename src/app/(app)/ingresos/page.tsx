@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
-import { StagePage } from "@/components/shell/stage-page";
+import { MovementsView } from "@/components/finance/movements-view";
+import type { SearchParams } from "@/components/finance/filters";
+import { requireOwner } from "@/lib/auth/guard";
 
 export const metadata: Metadata = { title: "Ingresos" };
 
-export default function Page() {
-  return <StagePage title="Ingresos" stage={4} description="Aquí se listarán tus ingresos." />;
+export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const userId = await requireOwner();
+  return (
+    <MovementsView
+      userId={userId} basePath="/ingresos" title="Ingresos" description="Dinero que entra a tus cuentas." fixedType="income"
+      newLabel="Nuevo ingreso" sp={await searchParams}
+    />
+  );
 }

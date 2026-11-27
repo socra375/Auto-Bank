@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
-import { StagePage } from "@/components/shell/stage-page";
+import { MovementsView } from "@/components/finance/movements-view";
+import type { SearchParams } from "@/components/finance/filters";
+import { requireOwner } from "@/lib/auth/guard";
 
 export const metadata: Metadata = { title: "Movimientos" };
 
-export default function Page() {
-  return <StagePage title="Movimientos" stage={4} description="Aquí se listarán todos tus ingresos, gastos y transferencias." />;
+export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const userId = await requireOwner();
+  return (
+    <MovementsView
+      userId={userId} basePath="/movimientos" title="Movimientos" description="Todos tus ingresos, gastos, transferencias y ajustes. Los montos siempre se muestran en su propia moneda."
+      newLabel="Nuevo movimiento" sp={await searchParams}
+    />
+  );
 }
