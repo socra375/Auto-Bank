@@ -87,3 +87,11 @@ export async function rejects(p: Promise<unknown>, re: RegExp) {
   await expect(p).rejects.toThrow(re);
 }
 import { expect } from "vitest";
+
+/** Same Executor contract as production (`pg`), backed by PGlite. */
+export function liteExecutor(db: PGlite): import("../../src/server/executor").Executor {
+  return {
+    query: (sql, params) => db.query(sql, params as unknown[]) as never,
+    transaction: (fn) => db.transaction((tx) => fn((sql, params) => tx.query(sql, params as unknown[]) as never)),
+  };
+}
