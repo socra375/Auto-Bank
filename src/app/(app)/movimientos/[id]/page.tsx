@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ErrorState } from "@/components/states/states";
 import { PageHeader } from "@/components/shell/page-header";
 import { MovementForm } from "@/components/finance/movement-form";
+import { canRemove, RemoveMovementButton } from "@/components/finance/movement-list";
 import { statusLabel, toInitial, TYPE_LABEL } from "@/components/finance/format";
 import { ActionForm } from "@/components/ui/action-form";
 import { Disclosure, Field, inputCls } from "@/components/ui/fields";
@@ -56,6 +57,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <PageHeader title={m.description} description={`${TYPE_LABEL[m.type] ?? m.type} · ${fmtDate(m.date)} · ${statusLabel(m)}`} />
       <Link href="/movimientos" className="mb-4 inline-block text-sm text-primary underline">← Volver a movimientos</Link>
 
+      {(canRemove(m) || m.loanId) && (
+        <section aria-label="Acciones" className="mb-6 flex flex-wrap items-center gap-3">
+          {canRemove(m) && <RemoveMovementButton m={m} action={voidMovementAction.bind(null, id)} returnTo="/movimientos" />}
+          {m.loanId && (
+            <>
+              <Link href={`/prestamos/${m.loanId}`} className="btn btn-secondary">Gestionar en Préstamos</Link>
+              <p className="text-sm text-muted">Este movimiento pertenece a un préstamo: se elimina desde su préstamo.</p>
+            </>
+          )}
+        </section>
+      )}
+
       <section aria-labelledby="legs" className="mb-6 card">
         <h2 id="legs" className="mb-3 section-title">Detalle contable</h2>
         <ul className="divide-y divide-border text-sm">
@@ -107,14 +120,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   accounts={accounts.filter((a) => a.status === "active").map((a) => ({ id: a.id, name: a.name, currency: a.currency }))}
                   categories={categories.filter((c) => c.status === "active").map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
                 />
-              </Disclosure>
-              <Disclosure summary="Anular movimiento">
-                <p className="mb-3 text-sm text-muted">Se genera una reversa exacta; el movimiento permanece en el historial como anulado.</p>
-                <ActionForm action={voidMovementAction.bind(null, id)} submit="Anular movimiento" variant="danger">
-                  <Field label="Motivo (opcional)" id="void-reason">
-                    <input id="void-reason" name="reason" maxLength={300} className={inputCls} />
-                  </Field>
-                </ActionForm>
               </Disclosure>
             </>
           )}

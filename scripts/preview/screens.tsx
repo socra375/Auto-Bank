@@ -4,7 +4,9 @@ import { NewAccountTile } from "@/components/finance/account-card";
 import { AccountItem, AccountTotals } from "@/components/finance/accounts";
 import { AssetCard, ASSET_TYPE_LABEL, ASSET_TYPE_ORDER, NetWorthPanel, Sparkline } from "@/components/finance/assets";
 import { FiltersForm, Pagination } from "@/components/finance/filters";
-import { LoanCard } from "@/components/finance/loans";
+import { LoanCard, RemoveLoanButton } from "@/components/finance/loans";
+import { AccountCard } from "@/components/finance/account-card";
+import { ConfirmActionDialog, ConfirmPanel, VOID_NOTICE } from "@/components/ui/confirm-dialog";
 import { MovementForm } from "@/components/finance/movement-form";
 import { MovementList } from "@/components/finance/movement-list";
 import { QuoteBoard } from "@/components/market/quote-board";
@@ -84,7 +86,7 @@ const movimientos = (
       </Disclosure>
     </div>
     <FiltersForm action="/movimientos" sp={{}} showType accounts={acctOpts} categories={cats} />
-    <MovementList items={F.movements} />
+    <MovementList items={F.movements} remove={{ action: () => noop as never, returnTo: "/movimientos" }} />
     <Pagination basePath="/movimientos" sp={{}} page={1} pageSize={25} total={F.movements.length} />
   </>
 );
@@ -114,7 +116,7 @@ const prestamosNuevo = (
         </div>
       </ActionForm>
     </Disclosure>
-    <ul className="grid gap-3 lg:grid-cols-2">{F.loans.filter((l) => l.direction === "receivable").map((l) => <LoanCard key={l.id} l={l} />)}</ul>
+    <ul className="grid gap-3 lg:grid-cols-2">{F.loans.filter((l) => l.direction === "receivable").map((l) => <LoanCard key={l.id} l={l} remove={noop as never} />)}</ul>
   </>
 );
 const prestamosList = (
@@ -137,7 +139,7 @@ const prestamosList = (
           className="pill">{label}</Link>
       ))}
     </nav>
-    <ul className="grid gap-3 lg:grid-cols-2">{F.loans.filter((l) => l.direction === "receivable").map((l) => <LoanCard key={l.id} l={l} />)}</ul>
+    <ul className="grid gap-3 lg:grid-cols-2">{F.loans.filter((l) => l.direction === "receivable").map((l) => <LoanCard key={l.id} l={l} remove={noop as never} />)}</ul>
   </>
 );
 
@@ -146,14 +148,73 @@ const prestamoDetalle = (
   <>
     <PageHeader title={l0.counterparty} description={`Me debe · ${l0.currency} · desde ${fmtDate(l0.startDate)} · vence ${fmtDate(l0.dueDate!)}`} />
     <div className="mb-4 flex flex-wrap gap-4 text-sm"><Link href="#" className="text-primary underline">← Volver a préstamos</Link></div>
-    <LoanCard l={l0} />
-    <section className="mt-6 card">
-      <h2 className="mb-3 section-title">Pagos</h2>
-      <ul className="space-y-2 text-sm">
-        <li className="flex justify-between"><span>{fmtDate("2026-10-12")} · Cobro de préstamo</span><span>{formatMoney(30000n, "USD")}</span></li>
+    <section aria-label="Acciones del préstamo" className="mb-6 flex flex-wrap items-center gap-3">
+      <RemoveLoanButton l={l0} action={noop as never} />
+      <p className="text-sm text-muted">Para eliminar el préstamo, primero elimina sus pagos (abajo).</p>
+    </section>
+    <section className="mb-6 card">
+      <h2 className="mb-3 section-title">Movimientos del préstamo</h2>
+      <ul className="divide-y divide-border text-sm">
+        <li className="py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">Cobro de préstamo · {fmtDate("2026-10-12")}</span><Link href="#" className="text-primary underline">Ver movimiento</Link></div>
+          <p className="text-muted">Banco Popular · Capital {formatMoney(30000n, "USD")}</p>
+          <div className="mt-2"><ConfirmActionDialog id="p1" triggerLabel="Eliminar pago" triggerAriaLabel="Eliminar pago" title="¿Eliminar este pago?" action={noop as never} /></div>
+        </li>
       </ul>
     </section>
   </>
+);
+
+const overlay = (children: React.ReactNode) => (
+  <>
+    <div className="fixed inset-0 z-40 bg-[var(--overlay)]" />
+    <div role="dialog" aria-label="Confirmación" className="fixed inset-0 z-50 m-auto h-fit max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-pop)]">{children}</div>
+  </>
+);
+const m0 = F.movements[0];
+const dialogMovimiento = (
+  <>{movimientos}{overlay(
+    <ConfirmPanel staticPreview id="d1" title="¿Eliminar este movimiento?" askReason notice={VOID_NOTICE} confirmLabel="Eliminar" pendingLabel="Eliminando…">
+      <p className="rounded-lg bg-surface-2 px-3 py-2.5"><strong className="block break-words">{m0.description}</strong><span className="text-muted">{fmtDate(m0.date)} · Banco Popular · </span><strong>-RD$4,825.40</strong></p>
+    </ConfirmPanel>)}</>
+);
+const dialogPrestamo = (
+  <>{prestamosList}{overlay(
+    <ConfirmPanel staticPreview id="d2" title="¿Eliminar este préstamo?" askReason notice={`${VOID_NOTICE} El préstamo dejará de contar como por cobrar y el movimiento de dinero de su creación se revierte en la cuenta.`} confirmLabel="Eliminar préstamo" pendingLabel="Eliminando…">
+      <p className="rounded-lg bg-surface-2 px-3 py-2.5"><strong className="block">María Fernández</strong><span className="text-muted">Me debe · capital </span><strong>RD$45,000.00</strong></p>
+    </ConfirmPanel>)}</>
+);
+const dialogPrestamoBloqueado = (
+  <>{prestamosList}{overlay(
+    <ConfirmPanel staticPreview id="d3" title="¿Eliminar este préstamo?" blocked={<>Primero elimina los pagos de este préstamo. Los encuentras en <span className="font-semibold text-primary underline">el detalle del préstamo</span>.</>} notice="" confirmLabel="Eliminar préstamo" pendingLabel="">
+      <p className="rounded-lg bg-surface-2 px-3 py-2.5"><strong className="block">Carlos Peña</strong><span className="text-muted">Me debe · capital </span><strong>US$1,500.00</strong></p>
+    </ConfirmPanel>)}</>
+);
+const a0 = F.accounts[0];
+const cuentaMenu = (
+  <>
+    <PageHeader title="Cuentas" description="Menú Acciones abierto." />
+    <ul className="ac-grid"><li className="ac-item">
+      <AccountCard uid="m1" name={a0.name} type={a0.type} currency={a0.currency} balanceMinor={a0.balanceMinor} />
+      <div className="ac-tray">
+        <div className="ac-meta"><p className="truncate text-sm">{a0.description}</p><p className="truncate text-xs text-muted">Saldo inicial RD$50,000.00 al 01/01/2026</p></div>
+        <div className="ac-actions">
+          <Link href="#" className="btn btn-primary ac-main">Ver movimientos</Link>
+          <div className="ac-menu">
+            <button type="button" className="btn btn-secondary ac-more" aria-expanded="true">Acciones</button>
+            <ul className="ac-pop"><li><button type="button" className="ac-opt">Editar</button></li><li><button type="button" className="ac-opt">Archivar</button></li></ul>
+          </div>
+        </div>
+      </div>
+    </li></ul>
+  </>
+);
+const cuentaArchivar = (
+  <>{cuentas}{overlay(
+    <ConfirmPanel staticPreview id="d4" title="¿Archivar «Banco Popular»?" askReason={false} notice="Las cuentas no se borran: al archivarla se conserva todo su historial y su saldo, ya no admite movimientos nuevos y puedes reactivarla cuando quieras." confirmLabel="Archivar cuenta" pendingLabel="">
+      <p className="rounded-lg border border-border-strong bg-surface-2 px-3 py-2.5">Esta cuenta tiene un saldo de <strong>RD$430,420.55</strong>.</p>
+      <label className="check text-sm"><input type="checkbox" /> Confirmo archivar con saldo distinto de cero</label>
+    </ConfirmPanel>)}</>
 );
 
 const patrimonio = (
@@ -285,6 +346,11 @@ export const SCREENS: Screen[] = [
   { name: "prestamos-nuevo", path: "/prestamos", shell: true, node: prestamosNuevo },
   { name: "movimientos", path: "/movimientos", shell: true, node: movimientos },
   { name: "prestamos", path: "/prestamos", shell: true, node: prestamosList },
+  { name: "dialog-movimiento", path: "/movimientos", shell: true, node: dialogMovimiento },
+  { name: "dialog-prestamo", path: "/prestamos", shell: true, node: dialogPrestamo },
+  { name: "dialog-prestamo-bloqueado", path: "/prestamos", shell: true, node: dialogPrestamoBloqueado },
+  { name: "cuenta-menu", path: "/cuentas", shell: true, node: cuentaMenu },
+  { name: "dialog-archivar", path: "/cuentas", shell: true, node: cuentaArchivar },
   { name: "prestamo-detalle", path: "/prestamos", shell: true, node: prestamoDetalle },
   { name: "patrimonio", path: "/patrimonio", shell: true, node: patrimonio },
   { name: "reportes", path: "/reportes", shell: true, node: reportes },

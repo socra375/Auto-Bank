@@ -35,11 +35,19 @@ export async function updateMovementMetaAction(id: string, _: ActionState, form:
   });
 }
 
+/** Only list pages are valid return targets (never an arbitrary URL from the form). */
+const LIST_TARGET = /^\/(movimientos|ingresos|gastos|transferencias)(\?[A-Za-z0-9_=&%.+-]*)?$/;
+
+/** "Eliminar": an auditable void (reversal entry), never a hard delete. Redirects to the list with a confirmation banner. */
 export async function voidMovementAction(id: string, _: ActionState, form: FormData) {
+  const f = fields(form);
   const s = await guarded(async (u, ex) => {
-    await voidMovement(ex, u, id, fields(form).reason);
+    await voidMovement(ex, u, id, f.reason);
     done();
   });
-  if (s?.ok) redirect("/movimientos");
+  if (s?.ok) {
+    const to = LIST_TARGET.test(f.returnTo ?? "") ? f.returnTo : "/movimientos";
+    redirect(`${to}${to.includes("?") ? "&" : "?"}eliminado=1`);
+  }
   return s;
 }

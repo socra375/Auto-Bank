@@ -34,7 +34,7 @@ const leg = (accountName: string, currency: "DOP" | "USD", kind: MovementRow["le
 let n = 0;
 const mv = (o: Partial<MovementRow> & Pick<MovementRow, "type" | "date" | "description" | "legs">): MovementRow => ({
   id: `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`, notes: null, status: "posted", categoryId: null, categoryName: null,
-  reversesId: null, replacedById: null, fxRate: null, createdAt: "", ...o,
+  reversesId: null, replacedById: null, loanId: null, fxRate: null, createdAt: "", ...o,
 });
 export const movements: MovementRow[] = [
   mv({ type: "expense", date: "2026-11-26", description: "Supermercado Nacional", categoryName: "Supermercado", legs: [leg("Banco Popular", "DOP", "expense", -4_825.4)] }),

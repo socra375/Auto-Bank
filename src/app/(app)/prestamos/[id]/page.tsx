@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TYPE_LABEL } from "@/components/finance/format";
-import { StatusBadge } from "@/components/finance/loans";
+import { RemoveLoanButton, StatusBadge } from "@/components/finance/loans";
+import { ConfirmActionDialog } from "@/components/ui/confirm-dialog";
+import { CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
 import { ErrorState } from "@/components/states/states";
 import { ActionForm } from "@/components/ui/action-form";
 import { Disclosure, Field, inputCls } from "@/components/ui/fields";
-import { cancelLoanAction, registerPaymentAction, voidLoanOriginAction, voidPaymentAction } from "@/lib/actions/loans";
+import { registerPaymentAction, removeLoanAction, voidPaymentAction } from "@/lib/actions/loans";
 import { requireOwner } from "@/lib/auth/guard";
 import { fmtDate, todayDR } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
@@ -19,12 +21,13 @@ import { getLoan } from "@/server/loans";
 export const metadata: Metadata = { title: "Detalle de préstamo" };
 
 const ACTION_LABEL: Record<string, string> = {
-  "loan.create": "Préstamo registrado", "loan.payment": "Pago registrado", "loan.payment_void": "Pago anulado", "loan.origin_void": "Desembolso inicial anulado", "loan.cancel": "Préstamo cancelado",
+  "loan.create": "Préstamo registrado", "loan.payment": "Pago registrado", "loan.payment_void": "Pago anulado", "loan.origin_void": "Desembolso inicial anulado", "loan.cancel": "Préstamo cancelado (eliminado)",
 };
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ eliminado?: string | string[] }> }) {
   const userId = await requireOwner();
   const { id } = await params;
+  const removedPayment = !!(await searchParams).eliminado;
   const ex = getExecutor();
   let d;
   try {
@@ -39,7 +42,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const receivable = l.direction === "receivable";
   const activePayments = movements.some((m) => m.status === "posted" && (m.type === "loan_collection" || m.type === "loan_repayment"));
   const cancelled = l.status === "cancelado";
-  const canCancel = !cancelled && !l.funded && !activePayments;
   const formKey = crypto.randomUUID(); // idempotency key: new per rendered form
   const money = (n: bigint) => formatMoney(n, l.currency);
 
@@ -70,14 +72,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </section>
 
       {cancelled && <p className="mb-6 card text-sm text-muted">Préstamo cancelado: no cuenta en tus totales ni admite nuevos pagos.</p>}
-      {canCancel && (
-        <section className="mb-6 max-w-md">
-          <Disclosure summary="Cancelar préstamo">
-            <ActionForm action={cancelLoanAction.bind(null, id)} submit="Confirmar cancelación" variant="danger">
-              <p className="text-sm text-muted">El préstamo dejará de contar como pendiente. Esta acción no se puede deshacer.</p>
-              <Field label="Motivo (opcional)" id="cancel-reason"><input id="cancel-reason" name="reason" maxLength={300} className={inputCls} /></Field>
-            </ActionForm>
-          </Disclosure>
+      {removedPayment && (
+        <p role="status" className="feedback mb-6 flex items-start gap-2 rounded-lg bg-positive-soft px-3 py-2.5 text-sm text-positive">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /><span>Pago eliminado (anulado). El saldo pendiente se restauró.</span>
+        </p>
+      )}
+      {!cancelled && (
+        <section aria-label="Acciones del préstamo" className="mb-6 flex flex-wrap items-center gap-3">
+          <RemoveLoanButton l={l} action={removeLoanAction.bind(null, id)} />
+          {activePayments && <p className="text-sm text-muted">Para eliminar el préstamo, primero elimina sus pagos (abajo).</p>}
         </section>
       )}
 
@@ -116,8 +119,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <ul className="divide-y divide-border text-sm">
             {movements.map((m) => {
               const isPayment = m.type === "loan_collection" || m.type === "loan_repayment";
-              const isOrigin = m.type === "loan_disbursement" || m.type === "loan_proceeds";
-              return (
+                            return (
                 <li key={m.id} className="py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">{TYPE_LABEL[m.type] ?? m.type} · {fmtDate(m.date)}{m.status === "reversed" ? " · Anulado" : ""}</span>
@@ -128,16 +130,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     {m.interestMinor !== 0n ? ` · Interés ${money(m.interestMinor)}` : ""}
                     {m.notes ? ` · ${m.notes}` : ""}
                   </p>
-                  {m.status === "posted" && (isPayment || (isOrigin && !activePayments)) && (
-                    <div className="mt-2 max-w-md">
-                      <Disclosure summary={isPayment ? "Anular pago" : "Anular desembolso inicial"}>
-                        <ActionForm
-                          action={(isPayment ? voidPaymentAction : voidLoanOriginAction).bind(null, id, m.id)}
-                          submit="Anular" variant="danger"
-                        >
-                          <Field label="Motivo (opcional)" id={`void-${m.id}`}><input id={`void-${m.id}`} name="reason" maxLength={300} className={inputCls} /></Field>
-                        </ActionForm>
-                      </Disclosure>
+                  {m.status === "posted" && isPayment && (
+                    <div className="mt-2">
+                      <ConfirmActionDialog
+                        id={`del-pay-${m.id}`} triggerLabel="Eliminar pago" triggerAriaLabel={`Eliminar pago del ${fmtDate(m.date)} por ${money(m.principalMinor + m.interestMinor)}`}
+                        title="¿Eliminar este pago?" confirmLabel="Eliminar pago" action={voidPaymentAction.bind(null, id, m.id)}
+                        notice="No se borra del historial: se anula con un reverso auditable. Dejará de contar en tus saldos y reportes; el saldo pendiente del préstamo se restaura."
+                      >
+                        <p className="rounded-lg bg-surface-2 px-3 py-2.5">
+                          <strong className="block">{TYPE_LABEL[m.type] ?? m.type}</strong>
+                          <span className="text-muted">{fmtDate(m.date)} · {m.accountName ?? ""} · </span><strong>{money(m.principalMinor + m.interestMinor)}</strong>
+                        </p>
+                      </ConfirmActionDialog>
                     </div>
                   )}
                 </li>

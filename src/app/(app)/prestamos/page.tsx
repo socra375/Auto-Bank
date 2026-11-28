@@ -7,7 +7,8 @@ import { PageHeader } from "@/components/shell/page-header";
 import { EmptyState, ErrorState } from "@/components/states/states";
 import { ActionForm } from "@/components/ui/action-form";
 import { CURRENCY_OPTIONS, Disclosure, Field, inputCls, Options } from "@/components/ui/fields";
-import { createLoanAction } from "@/lib/actions/loans";
+import { CheckCircle2 } from "lucide-react";
+import { createLoanAction, removeLoanAction } from "@/lib/actions/loans";
 import { requireOwner } from "@/lib/auth/guard";
 import { fmtDate, todayDR } from "@/lib/dates";
 import { CURRENCIES, formatMoney } from "@/lib/money";
@@ -99,6 +100,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
 
       {formOpen && newForm}
 
+      {first(sp.eliminado) && (
+        <p role="status" className="feedback mb-4 flex items-start gap-2 rounded-lg bg-positive-soft px-3 py-2.5 text-sm text-positive">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /><span>Préstamo eliminado (anulado). Ya no cuenta en por cobrar / por pagar; el historial se conserva.</span>
+        </p>
+      )}
+
       <section aria-label="Resumen por moneda" className="mb-6 grid gap-4 sm:grid-cols-2">
         {CURRENCIES.map((c) => (
           <div key={c} className="card">
@@ -118,7 +125,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         {due.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border-strong/60 bg-surface px-4 py-8 text-center text-sm text-muted">No hay préstamos vencidos ni por vencer pronto.</p>
         ) : (
-          <ul className="grid gap-4 lg:grid-cols-2">{due.map((l) => <LoanCard key={l.id} l={l} />)}</ul>
+          <ul className="grid gap-4 lg:grid-cols-2">{due.map((l) => <LoanCard key={l.id} l={l} remove={removeLoanAction.bind(null, l.id)} />)}</ul>
         )}
       </section>
 
@@ -161,7 +168,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
           description="Registra uno con «Nuevo préstamo o deuda», o ajusta los filtros."
         />
       ) : (
-        <ul className="grid gap-4 lg:grid-cols-2">{loans.map((l) => <LoanCard key={l.id} l={l} />)}</ul>
+        <ul className="grid gap-4 lg:grid-cols-2">{loans.map((l) => <LoanCard key={l.id} l={l} remove={removeLoanAction.bind(null, l.id)} />)}</ul>
       )}
 
       {history && (

@@ -34,7 +34,7 @@ export async function buildReportCsv(ex: Executor, userId: string, report: Repor
       let seen = 0;
       let total = 0;
       for (let page = 1; rows.length < maxRows; page++) {
-        const r = await listMovements(ex, userId, { from: f.from, to: f.to, currency: f.currency, accountId: f.accountId, page, pageSize: Math.min(100, maxRows) });
+        const r = await listMovements(ex, userId, { from: f.from, to: f.to, currency: f.currency, accountId: f.accountId, includeVoided: true, page, pageSize: Math.min(100, maxRows) });
         seen += r.items.length;
         total = r.total;
         for (const m of r.items) for (const l of m.legs) {

@@ -91,6 +91,8 @@ export const movementFiltersSchema = z.object({
   currency: currencySchema.optional(),
   status: z.enum(["posted", "reversed"]).optional(),
   q: z.string().trim().max(100).optional(),
+  /** Default false: voided originals (status 'reversed') and the reversal rows are hidden. Balances/reports never depend on this. */
+  includeVoided: z.boolean().default(false),
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(25),
 });
