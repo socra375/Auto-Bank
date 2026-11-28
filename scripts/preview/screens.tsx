@@ -41,6 +41,8 @@ const overview = (
   </>
 );
 
+const overviewUsd = <OverviewView d={{ ...F.overview, currencies: ["USD"] }} />;
+
 const totals = { DOP: F.netWorth.byCurrency.DOP.accounts, USD: F.netWorth.byCurrency.USD.accounts };
 const cuentas = (
   <>
@@ -204,6 +206,7 @@ const verificar = (
 
 export const SCREENS: Screen[] = [
   { name: "overview", path: "/overview", shell: true, node: overview },
+  { name: "overview-usd", path: "/overview", shell: true, node: overviewUsd },
   { name: "cuentas", path: "/cuentas", shell: true, node: cuentas },
   { name: "movimientos", path: "/movimientos", shell: true, node: movimientos },
   { name: "prestamos", path: "/prestamos", shell: true, node: prestamosList },
