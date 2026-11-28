@@ -224,6 +224,28 @@ export async function cancelLoan(ex: Executor, userId: string, loanId: string, r
   });
 }
 
+/**
+ * "Eliminar préstamo": a thin dispatcher over the auditable services (nothing is ever hard-deleted).
+ * Unfunded -> cancelLoan; funded -> voidLoanOrigination (reverses the money movement and cancels the loan).
+ * Active payments must be voided first (voidPayment), one by one.
+ */
+export async function removeLoan(ex: Executor, userId: string, loanId: string, reason?: string) {
+  if (!idSchema.safeParse(loanId).success) throw notFound("Préstamo");
+  const l = (await ex.query(`select funded_from_account as funded, cancelled_at from loans where id = $1 and user_id = $2`, [loanId, userId])).rows[0];
+  if (!l) throw notFound("Préstamo");
+  if (l.cancelled_at) throw new DomainError("LOAN_CANCELLED", "Este préstamo ya está eliminado (cancelado).");
+  const n = Number((await ex.query(
+    `select count(*)::int as n from transactions where loan_id = $1 and user_id = $2 and type in ('loan_collection','loan_repayment') and status = 'posted'`, [loanId, userId],
+  )).rows[0].n);
+  if (n > 0) throw new DomainError("HAS_PAYMENTS", "Primero elimina los pagos de este préstamo.");
+  if (!l.funded) return cancelLoan(ex, userId, loanId, reason);
+  const origin = (await ex.query(
+    `select id from transactions where loan_id = $1 and user_id = $2 and type in ('loan_disbursement','loan_proceeds') and status = 'posted' order by created_at limit 1`, [loanId, userId],
+  )).rows[0];
+  if (!origin) throw new DomainError("NO_ORIGIN", "No se encontró el movimiento inicial de este préstamo.");
+  return { id: loanId, ...(await voidLoanOrigination(ex, userId, origin.id as string, reason)) };
+}
+
 // ---- reads --------------------------------------------------------------------
 
 const TODAY = `(now() at time zone 'America/Santo_Domingo')::date`;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { EmptyState, ErrorState } from "@/components/states/states";
 import { PageHeader } from "@/components/shell/page-header";
 import { Disclosure } from "@/components/ui/fields";
-import { createMovementAction } from "@/lib/actions/movements";
+import { createMovementAction, voidMovementAction } from "@/lib/actions/movements";
 import { todayDR } from "@/lib/dates";
 import { safe } from "@/lib/safe";
 import { listAccounts } from "@/server/accounts";
@@ -12,6 +12,7 @@ import { listMovements } from "@/server/ledger";
 import { FiltersForm, Pagination, parseFilters, type SearchParams } from "./filters";
 import { MovementForm, type MovementType } from "./movement-form";
 import { MovementList } from "./movement-list";
+import { CheckCircle2 } from "lucide-react";
 
 /**
  * Shared by /movimientos, /ingresos, /gastos and /transferencias (same data, filtered by type).
@@ -34,6 +35,17 @@ export async function MovementsView({
   const active = accounts.data.filter((a) => a.status === "active");
   const cats = categories.data.filter((c) => c.status === "active");
   const missingCategories = (fixedType === "income" || fixedType === "expense") && !cats.some((c) => c.kind === fixedType);
+  const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || undefined;
+  const showVoided = first(sp.anulados) === "1";
+  const qs = (drop: string[], add: Record<string, string> = {}) => {
+    const u = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (!drop.includes(k) && first(v)) u.set(k, first(v)!);
+    for (const [k, v] of Object.entries(add)) u.set(k, v);
+    const t = u.toString();
+    return t ? `${basePath}?${t}` : basePath;
+  };
+  const returnTo = qs(["eliminado", "page"]);
+  const toggleHref = showVoided ? qs(["anulados", "eliminado", "page"]) : qs(["eliminado", "page"], { anulados: "1" });
   const formKey = crypto.randomUUID(); // also the idempotency key: a new key per rendered form
   return (
     <>
@@ -62,7 +74,15 @@ export async function MovementsView({
         accounts={accounts.data.map((a) => ({ id: a.id, name: a.name }))}
         categories={categories.data.filter((c) => !fixedType || c.kind === fixedType).map((c) => ({ id: c.id, name: c.name }))}
       />
-      <MovementList items={list.data.items} />
+      {first(sp.eliminado) && (
+        <p role="status" className="feedback mb-4 flex items-start gap-2 rounded-lg bg-positive-soft px-3 py-2.5 text-sm text-positive">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /><span>Movimiento eliminado (anulado). Sigue en el historial y puedes verlo con «Mostrar anulados».</span>
+        </p>
+      )}
+      <div className="mb-3 flex justify-end">
+        <Link href={toggleHref} className="pill">{showVoided ? "Ocultar anulados" : "Mostrar anulados"}</Link>
+      </div>
+      <MovementList items={list.data.items} remove={{ action: (id) => voidMovementAction.bind(null, id), returnTo }} />
       <Pagination basePath={basePath} sp={sp} page={list.data.page} pageSize={list.data.pageSize} total={list.data.total} />
     </>
   );

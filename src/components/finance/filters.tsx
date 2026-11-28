@@ -10,7 +10,7 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 export function parseFilters(sp: SearchParams, fixedTypes?: MovementFilters["types"]): MovementFilters {
   const raw = {
     from: first(sp.from), to: first(sp.to), accountId: first(sp.cuenta), categoryId: first(sp.categoria),
-    currency: first(sp.moneda), q: first(sp.q), status: first(sp.estado),
+    currency: first(sp.moneda), q: first(sp.q), status: first(sp.estado), includeVoided: first(sp.anulados) === "1",
     types: fixedTypes ?? (first(sp.tipo) ? [first(sp.tipo)] : undefined),
     page: first(sp.page) ? Number(first(sp.page)) : 1,
   };
@@ -27,6 +27,7 @@ export function FiltersForm({
   const v = (k: string) => first(sp[k]) ?? "";
   return (
     <div role="search" aria-label="Filtros" className="contents"><form method="get" action={action} className="card mb-4 grid grid-cols-2 gap-3 !p-4 sm:gap-4 lg:grid-cols-4">
+      {v("anulados") === "1" && <input type="hidden" name="anulados" value="1" />}
       <Field label="Desde" id="f-from"><input id="f-from" name="from" type="date" defaultValue={v("from")} className={inputCls} /></Field>
       <Field label="Hasta" id="f-to"><input id="f-to" name="to" type="date" defaultValue={v("to")} className={inputCls} /></Field>
       {showType && (
@@ -69,7 +70,7 @@ export function Pagination({ basePath, sp, page, pageSize, total }: { basePath: 
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const href = (p: number) => {
     const qs = new URLSearchParams();
-    for (const [k, val] of Object.entries(sp)) if (k !== "page" && first(val)) qs.set(k, first(val)!);
+    for (const [k, val] of Object.entries(sp)) if (k !== "page" && k !== "eliminado" && first(val)) qs.set(k, first(val)!);
     qs.set("page", String(p));
     return `${basePath}?${qs}`;
   };

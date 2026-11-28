@@ -5,7 +5,7 @@ import type { MovementRow } from "../src/server/ledger";
 
 const base: MovementRow = {
   id: "11111111-1111-4111-8111-111111111111", type: "expense", date: "2026-02-01", description: "Super", notes: null, status: "posted",
-  categoryId: null, categoryName: "Comida", reversesId: null, replacedById: null, fxRate: null, createdAt: "", legs: [],
+  categoryId: null, categoryName: "Comida", reversesId: null, replacedById: null, loanId: null, fxRate: null, createdAt: "", legs: [],
 };
 
 describe("MovementList", () => {

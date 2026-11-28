@@ -240,7 +240,7 @@ export async function updateMovementMeta(ex: Executor, userId: string, id: strin
 export interface MovementLeg { accountId: string; accountName: string; currency: Currency; kind: EntryKind; amountMinor: bigint }
 export interface MovementRow {
   id: string; type: string; date: string; description: string; notes: string | null; status: "posted" | "reversed";
-  categoryId: string | null; categoryName: string | null; reversesId: string | null; replacedById: string | null;
+  categoryId: string | null; categoryName: string | null; reversesId: string | null; replacedById: string | null; loanId: string | null;
   fxRate: string | null; createdAt: string; legs: MovementLeg[];
 }
 
@@ -250,7 +250,7 @@ const LEGS = `(select coalesce(json_agg(json_build_object('accountId', e.account
 
 const MOVEMENT_SELECT = `
   select t.id, t.type::text as type, t.date::text as date, t.description, t.notes, t.status::text as status,
-         t.category_id, c.name as category_name, t.reverses_id, t.replaced_by_id, t.fx_rate::text as fx_rate,
+         t.category_id, c.name as category_name, t.reverses_id, t.replaced_by_id, t.loan_id, t.fx_rate::text as fx_rate,
          t.created_at::text as created_at, ${LEGS} as legs
   from transactions t left join categories c on c.id = t.category_id`;
 
@@ -262,7 +262,7 @@ function mapMovement(r: Row): MovementRow {
     id: r.id as string, type: r.type as string, date: r.date as string, description: r.description as string,
     notes: (r.notes as string | null) ?? null, status: r.status as "posted" | "reversed",
     categoryId: (r.category_id as string | null) ?? null, categoryName: (r.category_name as string | null) ?? null,
-    reversesId: (r.reverses_id as string | null) ?? null, replacedById: (r.replaced_by_id as string | null) ?? null,
+    reversesId: (r.reverses_id as string | null) ?? null, replacedById: (r.replaced_by_id as string | null) ?? null, loanId: (r.loan_id as string | null) ?? null,
     fxRate: (r.fx_rate as string | null) ?? null, createdAt: r.created_at as string, legs,
   };
 }
@@ -278,6 +278,8 @@ export async function listMovements(ex: Executor, userId: string, raw: MovementF
   if (f.to) where.push(`t.date <= ${p(f.to)}`);
   if (f.types?.length) where.push(`t.type::text = any(${p(f.types)}::text[])`);
   if (f.status) where.push(`t.status::text = ${p(f.status)}`);
+  // "Deleted" (voided) movements are hidden by default, unless the caller explicitly asks for voided ones or for reversal rows.
+  if (!f.includeVoided && f.status !== "reversed" && !f.types?.includes("reversal")) where.push(`t.status = 'posted' and t.type <> 'reversal'`);
   if (f.categoryId) where.push(`t.category_id = ${p(f.categoryId)}`);
   if (f.accountId) where.push(`exists (select 1 from entries e where e.transaction_id = t.id and e.account_id = ${p(f.accountId)})`);
   if (f.currency) where.push(`exists (select 1 from entries e where e.transaction_id = t.id and e.currency::text = ${p(f.currency)})`);
