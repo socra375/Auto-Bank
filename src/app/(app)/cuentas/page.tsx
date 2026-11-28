@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { AccountCard, AccountTotals } from "@/components/finance/accounts";
+import { NewAccountTile } from "@/components/finance/account-card";
+import { AccountItem, AccountTotals } from "@/components/finance/accounts";
 import { ACCOUNT_TYPE_LABEL } from "@/components/finance/format";
 import { PageHeader } from "@/components/shell/page-header";
 import { EmptyState, ErrorState } from "@/components/states/states";
@@ -16,8 +17,9 @@ import { consolidate } from "@/server/fx";
 
 export const metadata: Metadata = { title: "Cuentas" };
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ nuevo?: string | string[] }> }) {
   const userId = await requireOwner();
+  const wantsNew = !!(await searchParams).nuevo;
   const ex = getExecutor();
   const res = await safe(listAccounts(ex, userId));
   if (res.failed) {
@@ -40,7 +42,7 @@ export default async function Page() {
 
       {accounts.length > 0 && <AccountTotals totals={totals} consolidated={consolidated && !consolidated.failed ? consolidated.data : null} />}
 
-      <Disclosure summary="Nueva cuenta" className="mb-6">
+      <Disclosure id="nueva-cuenta" summary="Nueva cuenta" open={wantsNew || accounts.length === 0} className="mb-6 scroll-mt-20">
         <ActionForm action={createAccountAction} submit="Crear cuenta" resetOnSuccess>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Nombre" id="new-name"><input id="new-name" name="name" required maxLength={80} className={inputCls} /></Field>
@@ -62,14 +64,17 @@ export default async function Page() {
       </Disclosure>
 
       {accounts.length === 0 ? (
-        <EmptyState title="Aún no tienes cuentas" description="Crea tu primera cuenta para empezar a registrar movimientos." />
+        <EmptyState title="Aún no tienes cuentas" description="Crea tu primera cuenta con el formulario de arriba para empezar a registrar movimientos." />
       ) : (
         <>
-          <ul className="grid gap-4 lg:grid-cols-2">{active.map((a) => <AccountCard key={a.id} a={a} />)}</ul>
+          <ul className="ac-grid stagger-fade" aria-label="Cuentas activas">
+            {active.map((a) => <AccountItem key={a.id} a={a} />)}
+            <li className="ac-item"><NewAccountTile href="/cuentas?nuevo=1#nueva-cuenta" /></li>
+          </ul>
           {archived.length > 0 && (
             <section aria-labelledby="archived" className="mt-8">
               <h2 id="archived" className="mb-3 section-title">Archivadas</h2>
-              <ul className="grid gap-4 lg:grid-cols-2">{archived.map((a) => <AccountCard key={a.id} a={a} />)}</ul>
+              <ul className="ac-grid stagger-fade">{archived.map((a) => <AccountItem key={a.id} a={a} />)}</ul>
             </section>
           )}
         </>

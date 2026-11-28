@@ -31,6 +31,13 @@
   --shadow-card: 0 1px 2px rgb(16 42 67 / 0.05), 0 1px 3px rgb(16 42 67 / 0.04);
   --shadow-pop: 0 10px 30px rgb(16 42 67 / 0.18);
   --target: 2.75rem;
+  /* Motion tokens (docs/MOTION.md). Durations stay within 120-400ms; every animation is gated by prefers-reduced-motion. */
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :root[data-theme="dark"] {
@@ -145,7 +152,7 @@ h1, h2, h3 { text-wrap: balance; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-height: var(--target); min-width: var(--target);
     padding: 0 1.125rem; border-radius: var(--radius-md); border: 1px solid transparent; font-size: 0.875rem; font-weight: 600; line-height: 1.2;
-    cursor: pointer; text-align: center; transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    cursor: pointer; text-align: center; transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast), scale var(--dur-fast) var(--ease-out);
   }
   .btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
   .btn-primary { background: var(--primary); color: var(--on-primary); }
@@ -157,14 +164,14 @@ h1, h2, h3 { text-wrap: balance; }
   .btn-sm { min-height: 2.5rem; padding: 0 0.875rem; }
   .icon-btn {
     display: inline-grid; place-items: center; min-width: var(--target); min-height: var(--target); border-radius: var(--radius-md);
-    color: var(--muted); cursor: pointer;
+    color: var(--muted); cursor: pointer; transition: background-color var(--dur-fast), color var(--dur-fast), scale var(--dur-fast) var(--ease-out);
   }
   .icon-btn:hover { background: var(--surface-2); color: var(--text); }
 
   /* Pills / segmented navigation */
   .pill {
     display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0 0.875rem; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--text); font-size: 0.875rem; font-weight: 500; white-space: nowrap; transition: background-color 0.15s;
+    background: var(--surface); color: var(--text); font-size: 0.875rem; font-weight: 500; white-space: nowrap; transition: background-color var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), scale var(--dur-fast) var(--ease-out);
   }
   .pill:hover { background: var(--surface-2); }
   .pill[aria-current="page"], .pill[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
@@ -173,10 +180,11 @@ h1, h2, h3 { text-wrap: balance; }
   .field-input {
     width: 100%; min-height: var(--target); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface);
     color: var(--text); padding: 0.5rem 0.75rem; font: inherit; font-size: max(1rem, 1em);
+    transition: border-color var(--dur-fast), box-shadow var(--dur-fast), background-color var(--dur-fast);
   }
   textarea.field-input { min-height: 5rem; resize: vertical; }
   .field-input::placeholder { color: var(--muted); opacity: 0.8; }
-  .field-input:focus-visible { outline-offset: 0; border-color: var(--primary); }
+  .field-input:focus-visible { outline-offset: 0; border-color: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent); }
   .field-input:disabled { opacity: 0.6; }
   .field-input:user-invalid, .field-input[aria-invalid="true"] { border-color: var(--negative); background: var(--negative-soft); }
   .field-label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 600; }
@@ -209,7 +217,8 @@ h1, h2, h3 { text-wrap: balance; }
   }
   .data-table td, .data-table tbody th { padding: 0.875rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; font-weight: 400; text-align: left; }
   .data-table tbody tr:last-child > * { border-bottom: 0; }
-  .data-table tbody tr:hover { background: var(--surface-2); }
+  .data-table tbody tr { transition: background-color var(--dur-fast); }
+  .data-table tbody tr:hover, .data-table tbody tr:focus-within { background: var(--surface-2); }
   .data-table .num, .data-table th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .data-table.compact { font-size: 0.8125rem; }
   .data-table.compact td, .data-table.compact tbody th { padding: 0.5rem 0.5rem; }
@@ -237,14 +246,19 @@ h1, h2, h3 { text-wrap: balance; }
     .stack-table .num { text-align: right; }
   }
 
-  /* Loading skeleton */
-  .skeleton { background: var(--surface-2); border-radius: var(--radius-md); }
+  /* Loading skeleton: static block by default; the shimmer is a translating highlight (compositor only) */
+  .skeleton { position: relative; overflow: hidden; background: var(--surface-2); border-radius: var(--radius-md); }
   @media (prefers-reduced-motion: no-preference) {
-    .skeleton { background: linear-gradient(90deg, var(--surface-2), var(--border), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+    .skeleton::after {
+      content: ""; position: absolute; inset: 0; translate: -100% 0;
+      background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border) 70%, transparent), transparent);
+      animation: shimmer 1.4s var(--ease-inout) infinite;
+    }
     .spin { animation: spin 0.9s linear infinite; }
   }
-  @keyframes shimmer { to { background-position: -200% 0; } }
+  @keyframes shimmer { to { translate: 100% 0; } }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .skeleton-card { aspect-ratio: 1.586 / 1; border-radius: 1.5rem; }
 
   .visually-hidden:where(:not(:focus-within, :active)) {
     position: absolute !important; clip-path: inset(50%) !important; overflow: hidden !important; width: 1px !important; height: 1px !important;
@@ -255,12 +269,6 @@ h1, h2, h3 { text-wrap: balance; }
 /* Modal surfaces: stop scroll chaining to the page */
 [role="dialog"] { overscroll-behavior: contain; }
 
-@media (prefers-reduced-motion: no-preference) {
-  [data-sheet-in] { animation: sheet-in 0.2s ease-out; }
-  @keyframes sheet-in { from { transform: translateX(-1.5rem); opacity: 0; } }
-  [data-sheet-in="right"] { animation-name: sheet-in-r; }
-  @keyframes sheet-in-r { from { transform: translateX(1.5rem); opacity: 0; } }
-}
 @media (prefers-contrast: more) { :root { --muted: #3a4658; --border: #94a3b8; } }
 
 /* ---------- Overview: digital bank cards (decorative artwork is aria-hidden; figures are real text) ---------- */
@@ -293,10 +301,6 @@ h1, h2, h3 { text-wrap: balance; }
   .bc-body { position: relative; display: flex; flex-direction: column; justify-content: space-between; height: 100%; padding: 6cqw 6.4cqw 5.6cqw; }
   .bc-top { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; }
   .bc-brand { color: var(--bc-line); display: flex; align-items: center; gap: 2cqw; font-size: max(0.8125rem, 3.7cqw); font-weight: 650; letter-spacing: 0.01em; }
-  .bc-mark {
-    color: var(--bc-line); display: grid; place-items: center; width: 6.4cqw; min-width: 1.5rem; aspect-ratio: 1; border-radius: 30%; font-size: max(0.5625rem, 2.3cqw); font-weight: 700;
-    border: 1px solid var(--bc-rim); background: rgb(255 255 255 / 0.08);
-  }
   .bc-cur { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; text-align: right; }
   .bc-code { color: var(--bc-line); font-size: max(0.8125rem, 3.7cqw); font-weight: 700; letter-spacing: 0.12em; }
   .bc-name { font-size: max(0.6875rem, 2.7cqw); color: var(--bc-label); }
@@ -324,11 +328,138 @@ h1, h2, h3 { text-wrap: balance; }
   @media (max-width: 30rem) { .bc-strip { margin-inline: 0; padding: 0.75rem; gap: 0.5rem; } .bc-strip dd { font-size: 0.8125rem; } }
 
   @media (prefers-reduced-motion: no-preference) {
-    .bc { transition: transform 0.25s ease, box-shadow 0.25s ease; }
-    .bc:hover { transform: translateY(-2px); }
-    .bc-sheen { transform: translateX(-110%); transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1); }
-    .bc:hover .bc-sheen { transform: translateX(110%); }
+    .bc { transition: translate var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out); }
+    .bc-sheen { translate: -110% 0; transition: translate 0.9s var(--ease-out); }
+    @media (hover: hover) {
+      .bc:hover { translate: 0 -3px; }
+      .bc:hover .bc-sheen { translate: 110% 0; }
+    }
   }
   @media (prefers-reduced-motion: reduce) { .bc-sheen { transform: none; opacity: 0.6; } }
   @media (forced-colors: active) { .bc { forced-color-adjust: none; } }
+
+  /* ---------- Accounts as cards (type changes the engraving and tone; currency keeps its identity) ---------- */
+  .ac-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem 1.25rem; align-items: start; }
+  @media (min-width: 40rem) { .ac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 72rem) { .ac-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .ac-item { min-width: 0; }
+  .ac-body { gap: 0; }
+  .ac-top { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; }
+  .ac-type { display: flex; align-items: center; gap: 1.6cqw; color: var(--bc-label); font-size: max(0.6875rem, 2.8cqw); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+  .ac-type svg { width: 1.25em; height: 1.25em; flex: none; color: var(--bc-line); }
+  .ac-cur { display: flex; align-items: center; gap: 2cqw; }
+  .ac-badge {
+    padding: 0.1em 0.7em; border-radius: 999px; font-size: max(0.625rem, 2.5cqw); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    color: #f4f4f1; background: rgb(0 0 0 / 0.4); border: 1px solid rgb(255 255 255 / 0.4);
+  }
+  .ac-mid { flex: 1; display: flex; align-items: center; justify-content: space-between; min-height: 0; }
+  .ac-bottom { display: flex; flex-direction: column; }
+  .ac-name {
+    font-size: max(1rem, 5.2cqw); font-weight: 650; letter-spacing: -0.015em; line-height: 1.2; margin-bottom: 1.6cqw;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere;
+    text-shadow: 0 1px 0 rgb(0 0 0 / 0.35);
+  }
+  .ac .bc-label { font-size: max(0.625rem, 2.5cqw); opacity: 0.85; }
+  .ac-bal { font-size: max(1.375rem, 7.6cqw); margin-top: 0; }
+  .ac-archived { filter: saturate(0.18) brightness(0.92); }
+  .ac-archived .bc-sheen { opacity: 0.4; }
+
+  /* Type tones. Selectors pair type with currency so DOP stays navy/champagne and USD graphite/emerald/silver. */
+  .ac-savings.bc-dop { background: linear-gradient(135deg, #1a5a78 0%, #0f3856 46%, #07202f 100%); }
+  .ac-savings.bc-usd { background: linear-gradient(135deg, #1f5f4a 0%, #0f4333 46%, #052a1f 100%); }
+  .ac-cash.bc-dop { background: linear-gradient(135deg, #1f4f7d 0%, #123764 42%, #0a1d3b 100%); }
+  .ac-cash.bc-usd { background: linear-gradient(135deg, #3b4a45 0%, #1b4a40 46%, #0a2a22 100%); }
+  .ac-digital.bc-dop { background: linear-gradient(150deg, #11233f 0%, #0a1830 50%, #040a18 100%); }
+  .ac-digital.bc-usd { background: linear-gradient(150deg, #20262a 0%, #0f1c1d 52%, #040b0b 100%); }
+  .ac-digital.bc-dop { --bc-glow: #4f9ee0; }
+  .ac .bc-chip { width: 11.5cqw; }
+  .ac-digital .bc-chip { filter: grayscale(0.4) drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45)); }
+
+  .ac-tray {
+    display: grid; gap: 0.625rem; margin: 0.625rem 0.5rem 0; padding: 0.75rem 1rem 1rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; box-shadow: var(--shadow-card);
+  }
+  @media (max-width: 30rem) { .ac-tray { margin-inline: 0; padding-inline: 0.875rem; } }
+
+  /* "Nueva cuenta" tile: card-shaped, dashed, same ISO ratio */
+  .ac-new {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; text-align: center;
+    aspect-ratio: 1.586 / 1; border-radius: 1.5rem; padding: 1rem; color: var(--text);
+    border: 2px dashed var(--border-strong); background: var(--surface); position: relative; isolation: isolate;
+    transition: border-color var(--dur-fast), background-color var(--dur-fast), translate var(--dur-base) var(--ease-out), scale var(--dur-fast) var(--ease-out);
+  }
+  .ac-new:hover { border-color: var(--primary); background: var(--primary-soft); }
+  .ac-new-icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 999px; background: var(--primary-soft); color: var(--primary); margin-bottom: 0.25rem; }
+  .ac-new-icon svg { width: 1.5rem; height: 1.5rem; }
+  .ac-new-title { font-weight: 650; font-size: 1.0625rem; }
+  .ac-new-hint { font-size: 0.8125rem; color: var(--muted); }
+  @media (prefers-reduced-motion: no-preference) {
+    @media (hover: hover) { .ac-new:hover { translate: 0 -3px; } }
+    .ac-new:active { scale: 0.98; }
+  }
 }
+
+/* ---------- Motion system (docs/MOTION.md): every movement is opt-in, transform/opacity only, 120-400ms ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rise { from { opacity: 0; translate: 0 0.75rem; } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes pop { from { opacity: 0; scale: 0.97; translate: 0 -0.25rem; } }
+  @keyframes bar-grow { from { transform: scaleY(0); } }
+  @keyframes bar-grow-x { from { transform: scaleX(0); } }
+  @keyframes sheet-in-l { from { translate: -1.5rem 0; opacity: 0; } }
+  @keyframes sheet-out-l { to { translate: -1.5rem 0; opacity: 0; } }
+  @keyframes sheet-in-r { from { translate: 1.5rem 0; opacity: 0; } }
+  @keyframes sheet-out-r { to { translate: 1.5rem 0; opacity: 0; } }
+  @keyframes veil-in { from { opacity: 0; } }
+  @keyframes veil-out { to { opacity: 0; } }
+
+  /* Route enter + staggered section reveal: app/(app)/template.tsx remounts on navigation and its children rise in sequence.
+     It also plays when Suspense swaps a loading skeleton for the real content (new nodes mount). */
+  .stagger > * { animation: rise var(--dur-slow) var(--ease-out) backwards; }
+  .stagger > :nth-child(2) { animation-delay: 50ms; }
+  .stagger > :nth-child(3) { animation-delay: 100ms; }
+  .stagger > :nth-child(4) { animation-delay: 150ms; }
+  .stagger > :nth-child(5) { animation-delay: 200ms; }
+  .stagger > :nth-child(6) { animation-delay: 240ms; }
+  .stagger > :nth-child(n + 7) { animation-delay: 280ms; }
+
+  /* Card grids reveal with opacity only (their parent section already rises, so no double movement) */
+  .stagger-fade > * { animation: fade var(--dur-slow) var(--ease-out) backwards; }
+  .stagger-fade > :nth-child(2) { animation-delay: 70ms; }
+  .stagger-fade > :nth-child(3) { animation-delay: 140ms; }
+  .stagger-fade > :nth-child(4) { animation-delay: 200ms; }
+  .stagger-fade > :nth-child(n + 5) { animation-delay: 240ms; }
+
+  /* Press feedback */
+  .btn:active:not(:disabled, [aria-disabled="true"]), .pill:active, .icon-btn:active { scale: 0.97; }
+  @media (hover: hover) {
+    .btn-primary:hover:not(:disabled) { box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--primary) 70%, transparent); }
+    .btn-secondary:hover:not(:disabled), .btn-danger:hover:not(:disabled) { box-shadow: 0 2px 8px -4px rgb(16 42 67 / 0.35); }
+  }
+
+  /* Dialog / drawer: Radix keeps the node mounted until the exit animation ends */
+  [data-veil][data-state="open"] { animation: veil-in var(--dur-base) var(--ease-out); }
+  [data-veil][data-state="closed"] { animation: veil-out var(--dur-fast) var(--ease-in) forwards; }
+  [data-sheet="left"][data-state="open"] { animation: sheet-in-l var(--dur-base) var(--ease-out); }
+  [data-sheet="left"][data-state="closed"] { animation: sheet-out-l var(--dur-fast) var(--ease-in) forwards; }
+  [data-sheet="right"][data-state="open"] { animation: sheet-in-r var(--dur-base) var(--ease-out); }
+  [data-sheet="right"][data-state="closed"] { animation: sheet-out-r var(--dur-fast) var(--ease-in) forwards; }
+
+  /* Disclosure (<details>): content fades up when opened; the chevron rotation is a transition in fields.tsx */
+  details[open] > :not(summary) { animation: rise var(--dur-base) var(--ease-out); }
+
+  /* Charts: bars grow from their baseline on first paint */
+  .chart-bar { transform-box: fill-box; transform-origin: 50% 100%; animation: bar-grow var(--dur-slow) var(--ease-out) backwards; }
+  .chart-bar-neg { transform-origin: 50% 0%; }
+  .grow-x { transform-origin: 0 50%; animation: bar-grow-x var(--dur-slow) var(--ease-out) backwards; }
+
+  /* Action feedback (success / error messages under forms) */
+  .feedback { animation: pop var(--dur-base) var(--ease-out); }
+
+  /* Mobile tab bar: the active indicator scales in */
+  .nav-ind { transition: scale var(--dur-base) var(--ease-out); }
+}
+/* Static default: the indicator is simply present on the current tab */
+.nav-ind { scale: 0 1; }
+[aria-current="page"] > .nav-ind { scale: 1 1; }
+

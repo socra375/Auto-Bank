@@ -60,7 +60,7 @@ export function BarChart({ id, categories, series, currency, ariaLabel }: { id: 
             const yy = y(Math.max(v, 0)), h = Math.max(Math.abs(y(v) - zero), v === 0 ? 0 : 1);
             return (
               <rect key={s.name} x={left + i * slot + gap / 2 + k * bw} y={v >= 0 ? yy : zero} width={bw} height={h} rx="2"
-                fill={s.hatched ? `url(#${id}-h${k})` : FILL[s.tone]} stroke={FILL[s.tone]}>
+                fill={s.hatched ? `url(#${id}-h${k})` : FILL[s.tone]} stroke={FILL[s.tone]} className={v < 0 ? "chart-bar chart-bar-neg" : "chart-bar"}>
                 <title>{`${cat} · ${s.name}: ${formatMoney(s.values[i], currency)}`}</title>
               </rect>
             );
@@ -95,7 +95,7 @@ export function ShareBars({ items, currency }: { items: { label: string; minor: 
             <span className="min-w-0 truncate">{it.label}</span>
             <span className="amount shrink-0 text-sm">{formatMoney(it.minor, currency)} <span className="font-normal text-muted">· {(it.permille / 10).toFixed(1)}%</span></span>
           </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-border" aria-hidden><div className="h-2 rounded-full bg-primary" style={{ width: `${it.permille / 10}%` }} /></div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-border" aria-hidden><div className="grow-x h-2 rounded-full bg-primary" style={{ width: `${it.permille / 10}%` }} /></div>
         </li>
       ))}
     </ul>

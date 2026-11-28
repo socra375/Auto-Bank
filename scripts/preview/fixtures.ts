@@ -53,6 +53,9 @@ export const accounts: AccountWithBalance[] = [
   { id: "a3", name: "Ahorro metas", type: "savings", currency: "DOP", description: "Fondo de emergencia", status: "active", openingDate: "2026-02-01", openingBalanceMinor: D(50_000), entriesMinor: D(0), balanceMinor: D(50_000) },
   { id: "a4", name: "Cuenta USD", type: "bank", currency: "USD", description: null, status: "active", openingDate: "2026-01-01", openingBalanceMinor: D(2_000), entriesMinor: D(1_650.2), balanceMinor: D(3_650.2) },
   { id: "a5", name: "Tarjeta digital", type: "digital", currency: "USD", description: null, status: "active", openingDate: "2026-03-01", openingBalanceMinor: D(300), entriesMinor: D(-100), balanceMinor: D(200) },
+  { id: "a7", name: "Ahorro en dólares para el viaje de fin de año con la familia", type: "savings", currency: "USD", description: null, status: "active", openingDate: "2026-04-01", openingBalanceMinor: D(1_200), entriesMinor: D(300), balanceMinor: D(1_500) },
+  { id: "a8", name: "Billetera móvil", type: "digital", currency: "DOP", description: "Pagos del día a día", status: "active", openingDate: "2026-05-01", openingBalanceMinor: D(2_000), entriesMinor: D(-2_500), balanceMinor: D(-500) },
+  { id: "a9", name: "Caja chica USD", type: "cash", currency: "USD", description: null, status: "active", openingDate: "2026-05-01", openingBalanceMinor: D(120), entriesMinor: D(0), balanceMinor: D(120) },
   { id: "a6", name: "Cuenta antigua", type: "bank", currency: "DOP", description: null, status: "archived", openingDate: "2025-01-01", openingBalanceMinor: D(0), entriesMinor: D(0), balanceMinor: D(0) },
 ];
 

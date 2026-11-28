@@ -43,10 +43,61 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
   const formKey = crypto.randomUUID(); // idempotency key: new per rendered form
   const tabHref = (t: string) => `/prestamos?tab=${t}`;
   const v = (k: string) => first(sp[k]) ?? "";
+  const nuevo = first(sp.nuevo) === "payable" ? "payable" : first(sp.nuevo) === "receivable" ? "receivable" : undefined;
+  const noFilters = !raw.status && !raw.currency && !raw.q && !raw.includeCancelled;
+  const noLoansYet = noFilters && loans.length === 0 && due.length === 0 && CURRENCIES.every((c) => summary.receivable[c] === 0n && summary.payable[c] === 0n);
+  const formOpen = !!nuevo || noLoansYet;
+  const direction = nuevo ?? (tab === "pagar" ? "payable" : "receivable");
+
+  const newForm = (
+  <Disclosure id="nuevo-prestamo" summary="Nuevo préstamo o deuda" open={formOpen} className="mb-6 scroll-mt-20">
+    <ActionForm action={createLoanAction} submit="Registrar" resetOnSuccess>
+      <input type="hidden" name="idempotencyKey" value={formKey} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Tipo" id="ln-direction">
+          <select id="ln-direction" name="direction" required defaultValue={direction} className={inputCls}>
+            <Options items={[{ value: "receivable", label: "Presté dinero (me deben)" }, { value: "payable", label: "Me prestaron (debo)" }]} />
+          </select>
+        </Field>
+        <Field label="Persona o entidad" id="ln-counterparty"><input id="ln-counterparty" name="counterparty" autoFocus={!!nuevo} required maxLength={120} className={inputCls} /></Field>
+        <Field label="Capital" id="ln-principal"><input id="ln-principal" name="principal" required inputMode="decimal" placeholder="0.00" className={inputCls} /></Field>
+        <Field label="Moneda" id="ln-currency">
+          <select id="ln-currency" name="currency" required defaultValue="DOP" className={inputCls}><Options items={CURRENCY_OPTIONS} /></select>
+        </Field>
+        <Field label="Fecha de inicio" id="ln-start"><input id="ln-start" name="startDate" type="date" required defaultValue={todayDR()} className={inputCls} /></Field>
+        <Field label="Vencimiento (opcional)" id="ln-due"><input id="ln-due" name="dueDate" type="date" className={inputCls} /></Field>
+        <Field label="Tasa anual % (opcional, informativa)" id="ln-rate" hint="El interés real es el que registres en cada pago.">
+          <input id="ln-rate" name="interestRatePct" inputMode="decimal" placeholder="0" aria-describedby="ln-rate-hint" className={inputCls} />
+        </Field>
+        <Field label="Cuenta (misma moneda)" id="ln-account" hint="Obligatoria si el dinero se mueve ahora; también sirve como cuenta habitual.">
+          <select id="ln-account" name="accountId" defaultValue="" aria-describedby="ln-account-hint" className={inputCls}>
+            <Options placeholder="Sin cuenta" items={activeAccounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))} />
+          </select>
+        </Field>
+      </div>
+      <label className="check">
+        <input type="checkbox" name="funded" />
+        <span>El dinero sale/entra de la cuenta ahora. Desmárcalo si es una deuda ya existente (no se mueve dinero).</span>
+      </label>
+      <Field label="Notas (opcional)" id="ln-notes"><textarea id="ln-notes" name="notes" rows={2} maxLength={1000} className={inputCls} /></Field>
+    </ActionForm>
+  </Disclosure>
+  );
 
   return (
     <>
-      <PageHeader title="Préstamos y deudas" description="Prestar no es un gasto ni pedir prestado es un ingreso: solo el interés cuenta como ingreso o gasto. Cada moneda se totaliza por separado." />
+      <PageHeader
+        title="Préstamos y deudas"
+        description="Prestar no es un gasto ni pedir prestado es un ingreso: solo el interés cuenta como ingreso o gasto. Cada moneda se totaliza por separado."
+        actions={
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+            <Link href="/prestamos?nuevo=receivable#nuevo-prestamo" className="btn btn-primary">Presté dinero</Link>
+            <Link href="/prestamos?nuevo=payable#nuevo-prestamo" className="btn btn-primary">Me prestaron</Link>
+          </div>
+        }
+      />
+
+      {formOpen && newForm}
 
       <section aria-label="Resumen por moneda" className="mb-6 grid gap-4 sm:grid-cols-2">
         {CURRENCIES.map((c) => (
@@ -71,38 +122,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
         )}
       </section>
 
-      <Disclosure summary="Nuevo préstamo o deuda" className="mb-6">
-        <ActionForm action={createLoanAction} submit="Registrar" resetOnSuccess>
-          <input type="hidden" name="idempotencyKey" value={formKey} />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Tipo" id="ln-direction">
-              <select id="ln-direction" name="direction" required defaultValue={tab === "pagar" ? "payable" : "receivable"} className={inputCls}>
-                <Options items={[{ value: "receivable", label: "Presté dinero (me deben)" }, { value: "payable", label: "Me prestaron (debo)" }]} />
-              </select>
-            </Field>
-            <Field label="Persona o entidad" id="ln-counterparty"><input id="ln-counterparty" name="counterparty" required maxLength={120} className={inputCls} /></Field>
-            <Field label="Capital" id="ln-principal"><input id="ln-principal" name="principal" required inputMode="decimal" placeholder="0.00" className={inputCls} /></Field>
-            <Field label="Moneda" id="ln-currency">
-              <select id="ln-currency" name="currency" required defaultValue="DOP" className={inputCls}><Options items={CURRENCY_OPTIONS} /></select>
-            </Field>
-            <Field label="Fecha de inicio" id="ln-start"><input id="ln-start" name="startDate" type="date" required defaultValue={todayDR()} className={inputCls} /></Field>
-            <Field label="Vencimiento (opcional)" id="ln-due"><input id="ln-due" name="dueDate" type="date" className={inputCls} /></Field>
-            <Field label="Tasa anual % (opcional, informativa)" id="ln-rate" hint="El interés real es el que registres en cada pago.">
-              <input id="ln-rate" name="interestRatePct" inputMode="decimal" placeholder="0" aria-describedby="ln-rate-hint" className={inputCls} />
-            </Field>
-            <Field label="Cuenta (misma moneda)" id="ln-account" hint="Obligatoria si el dinero se mueve ahora; también sirve como cuenta habitual.">
-              <select id="ln-account" name="accountId" defaultValue="" aria-describedby="ln-account-hint" className={inputCls}>
-                <Options placeholder="Sin cuenta" items={activeAccounts.map((a) => ({ value: a.id, label: `${a.name} (${a.currency})` }))} />
-              </select>
-            </Field>
-          </div>
-          <label className="check">
-            <input type="checkbox" name="funded" />
-            <span>El dinero sale/entra de la cuenta ahora. Desmárcalo si es una deuda ya existente (no se mueve dinero).</span>
-          </label>
-          <Field label="Notas (opcional)" id="ln-notes"><textarea id="ln-notes" name="notes" rows={2} maxLength={1000} className={inputCls} /></Field>
-        </ActionForm>
-      </Disclosure>
+
+      {!formOpen && newForm}
 
       <nav aria-label="Tipo de préstamo" className="mb-4 flex gap-2">
         {[["cobrar", "Por cobrar"], ["pagar", "Por pagar"]].map(([t, label]) => (
