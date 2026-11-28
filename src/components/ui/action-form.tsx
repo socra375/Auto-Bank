@@ -26,12 +26,12 @@ export function ActionForm({
     <form ref={ref} action={formAction} className={cn("space-y-4", className)}>
       {children}
       {state?.error && (
-        <p role="alert" className="flex items-start gap-2 rounded-lg border border-negative bg-negative-soft px-3 py-2.5 text-sm text-negative">
+        <p role="alert" className="feedback flex items-start gap-2 rounded-lg border border-negative bg-negative-soft px-3 py-2.5 text-sm text-negative">
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden /><span>{state.error}</span>
         </p>
       )}
       {state?.ok && (
-        <p role="status" className="flex items-start gap-2 rounded-lg bg-positive-soft px-3 py-2.5 text-sm text-positive">
+        <p role="status" className="feedback flex items-start gap-2 rounded-lg bg-positive-soft px-3 py-2.5 text-sm text-positive">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden /><span>{state.ok}</span>
         </p>
       )}

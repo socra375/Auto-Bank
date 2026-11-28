@@ -23,6 +23,7 @@ for (const theme of ["light", "dark"]) {
       const html = `<!doctype html><html lang="es-DO" data-theme="${theme}" class="${theme === "dark" ? "dark" : ""}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${fontCss}</style><style>${css}</style></head><body>${body}</body></html>`;
       await page.setContent(html, { waitUntil: "load" });
       await page.evaluate(() => document.fonts.ready);
+      await page.waitForTimeout(700); // let enter animations settle
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       const full = n !== "eddie";
       if (process.env.CLIP) { const [cy, ch] = process.env.CLIP.split(",").map(Number); await page.screenshot({ path: path.join(outDir, `${n}-${tag}-${theme}-clip.png`), fullPage: true, clip: { x: 0, y: cy, width: w, height: ch } }); continue; }

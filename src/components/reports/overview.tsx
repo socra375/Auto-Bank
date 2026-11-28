@@ -22,7 +22,7 @@ export function OverviewView({ d }: { d: Overview }) {
     <>
       <section aria-labelledby="ov-kpi" className="mb-10">
         <h2 id="ov-kpi" className="sr-only">Resumen por moneda</h2>
-        <div className={`grid gap-5 ${d.currencies.length > 1 ? "lg:grid-cols-2" : "max-w-xl"}`}>
+        <div className={`stagger-fade grid gap-5 ${d.currencies.length > 1 ? "lg:grid-cols-2" : "max-w-xl"}`}>
           {d.currencies.map((c) => {
             const f = d.flow.byCurrency.find((x) => x.currency === c)!;
             return (

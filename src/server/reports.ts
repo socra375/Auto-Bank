@@ -350,6 +350,7 @@ export const QUICK_LINKS = [
   { href: "/ingresos", label: "Nuevo ingreso" },
   { href: "/gastos", label: "Nuevo gasto" },
   { href: "/transferencias", label: "Nueva transferencia" },
+  { href: "/prestamos?nuevo=receivable#nuevo-prestamo", label: "Nuevo préstamo" },
   { href: "/prestamos", label: "Registrar pago de préstamo" },
 ] as const;
 

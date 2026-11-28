@@ -25,12 +25,12 @@ export function FieldGroup({ legend, children, className }: { legend: string; ch
   );
 }
 
-export function Disclosure({ summary, children, className }: { summary: string; children: React.ReactNode; className?: string }) {
+export function Disclosure({ summary, children, className, open, id }: { summary: string; children: React.ReactNode; className?: string; open?: boolean; id?: string }) {
   return (
-    <details className={cn("group card-flat shadow-[var(--shadow-card)]", className)}>
+    <details id={id} open={open} className={cn("group card-flat shadow-[var(--shadow-card)]", className)}>
       <summary className="flex min-h-11 cursor-pointer select-none items-center justify-between gap-3 rounded-xl px-4 py-2 text-sm font-semibold marker:content-none [&::-webkit-details-marker]:hidden">
         {summary}
-        <ChevronDown className="size-4 text-muted transition-transform group-open:rotate-180" aria-hidden />
+        <ChevronDown className="size-4 text-muted transition-transform duration-[var(--dur-base)] ease-[var(--ease-out)] motion-reduce:transition-none group-open:rotate-180" aria-hidden />
       </summary>
       <div className="border-t border-border p-4">{children}</div>
     </details>

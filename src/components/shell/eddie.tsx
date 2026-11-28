@@ -16,10 +16,10 @@ export function EddieButton() {
         <span className="sm:hidden">Eddie</span>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-[var(--overlay)]" />
+        <Dialog.Overlay data-veil className="fixed inset-0 z-40 bg-[var(--overlay)]" />
         <Dialog.Content
           aria-describedby="eddie-desc"
-          data-sheet-in="right"
+          data-sheet="right"
           className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-surface shadow-[var(--shadow-pop)]"
         >
           <div className="flex items-center justify-between gap-3 border-b border-border p-4">

@@ -11,12 +11,12 @@ import { ALL_ITEMS, MOBILE_PRIMARY } from "./nav";
 import { NavList } from "./nav-list";
 import { EddieButton } from "./eddie";
 import { signOutAction } from "@/lib/auth/actions";
+import { Logo } from "@/components/brand/logo";
 
 function Brand({ collapsed }: { collapsed?: boolean }) {
   return (
-    <Link href="/overview" className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-lg font-bold tracking-tight text-white">
-      <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-on-primary">AB</span>
-      <span className={cn(collapsed && "sr-only")}>Auto-Bank</span>
+    <Link href="/overview" className="brand-link flex min-h-11 items-center rounded-lg px-2" aria-label="Auto-Bank, ir al resumen">
+      {collapsed ? <Logo variant="mark" size={40} /> : <Logo variant="horizontal" size={40} />}
     </Link>
   );
 }
@@ -73,7 +73,7 @@ export function AppShell({ children, initialCollapsed = false }: { children: Rea
       <div className={cn("transition-[padding] motion-reduce:transition-none", collapsed ? "md:pl-[4.5rem]" : "md:pl-64")}>
         <header className="sticky top-0 z-20 flex min-h-14 items-center justify-between gap-3 border-b border-border bg-surface/90 px-4 backdrop-blur md:px-8">
           <div className="flex min-w-0 items-center gap-2">
-            <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-xs font-bold text-on-primary md:hidden">AB</span>
+            <Logo variant="mark" panel size={32} className="md:hidden" />
             <p className="truncate text-sm font-semibold text-muted"><span className="hidden md:inline">Auto-Bank / </span><span className="text-text">{section}</span></p>
           </div>
           <div className="flex items-center gap-2">
@@ -102,7 +102,7 @@ export function AppShell({ children, initialCollapsed = false }: { children: Rea
             >
               <Icon className={cn("size-5", active && "stroke-[2.5]")} aria-hidden />
               <span className="truncate">{item.label.split(" ")[0]}</span>
-              <span aria-hidden className={cn("h-0.5 w-6 rounded-full", active ? "bg-white" : "bg-transparent")} />
+              <span aria-hidden className="nav-ind h-0.5 w-6 rounded-full bg-white" />
             </Link>
           );
         })}
@@ -113,14 +113,14 @@ export function AppShell({ children, initialCollapsed = false }: { children: Rea
             <span aria-hidden className="h-0.5 w-6" />
           </Dialog.Trigger>
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 z-40 bg-[var(--overlay)]" />
+            <Dialog.Overlay data-veil className="fixed inset-0 z-40 bg-[var(--overlay)]" />
             <Dialog.Content
               aria-describedby={undefined}
-              data-sheet-in="left"
+              data-sheet="left"
               className="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col bg-sidebar p-2 shadow-[var(--shadow-pop)]"
             >
               <div className="flex items-center justify-between">
-                <Dialog.Title className="px-3 py-3 text-lg font-bold text-white">Auto-Bank</Dialog.Title>
+                <Dialog.Title className="px-3 py-2"><Logo variant="horizontal" size={36} /></Dialog.Title>
                 <Dialog.Close aria-label="Cerrar menú" className="grid size-11 place-items-center rounded-lg text-[var(--sidebar-fg)] hover:bg-white/10">
                   <X className="size-5" aria-hidden />
                 </Dialog.Close>

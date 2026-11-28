@@ -1,6 +1,7 @@
 /* Preview-only screen compositions built from the app's real components + fixtures. */
 import Link from "next/link";
-import { AccountCard, AccountTotals } from "@/components/finance/accounts";
+import { NewAccountTile } from "@/components/finance/account-card";
+import { AccountItem, AccountTotals } from "@/components/finance/accounts";
 import { AssetCard, ASSET_TYPE_LABEL, ASSET_TYPE_ORDER, NetWorthPanel, Sparkline } from "@/components/finance/assets";
 import { FiltersForm, Pagination } from "@/components/finance/filters";
 import { LoanCard } from "@/components/finance/loans";
@@ -12,16 +13,21 @@ import { SymbolDetail } from "@/components/market/symbol-detail";
 import { OverviewView } from "@/components/reports/overview";
 import { PillNav } from "@/components/reports/parts";
 import { BalancesSection, ComparisonSection, IncomeExpenseSection, NetWorthSection } from "@/components/reports/report-sections";
+import { Logo } from "@/components/brand/logo";
 import { AuthCard, Notice } from "@/components/auth/auth-card";
 import { AuthForm } from "@/components/auth/auth-form";
 import { VerifyForm } from "@/components/auth/verify-form";
 import { AppShell } from "@/components/shell/app-shell";
 import { Chat } from "@/components/shell/eddie-panel";
 import { PageHeader } from "@/components/shell/page-header";
-import { Disclosure } from "@/components/ui/fields";
+import { EmptyState } from "@/components/states/states";
+import { ActionForm } from "@/components/ui/action-form";
+import { Disclosure, Field, inputCls, Options } from "@/components/ui/fields";
 import { CURRENCIES, formatMoney } from "@/lib/money";
 import { fmtDate } from "@/lib/dates";
 import { PERIOD_LABEL, PERIODS } from "@/server/reports";
+import LoadingCuentas from "../../src/app/(app)/cuentas/loading";
+import LoadingOverview from "../../src/app/(app)/overview/loading";
 import * as F from "./fixtures";
 
 export type Screen = { name: string; path: string; shell: boolean; node: React.ReactNode };
@@ -48,8 +54,22 @@ const cuentas = (
   <>
     <PageHeader title="Cuentas" description="Saldos = saldo inicial + movimientos. Cada moneda se totaliza por separado." />
     <AccountTotals totals={totals} consolidated={F.netWorth.consolidated!.figures.net} />
-    <Disclosure summary="Nueva cuenta" className="mb-6"><p className="text-sm">…</p></Disclosure>
-    <ul className="grid gap-3 lg:grid-cols-2">{F.accounts.filter((a) => a.status === "active").map((a) => <AccountCard key={a.id} a={a} />)}</ul>
+    <Disclosure id="nueva-cuenta" summary="Nueva cuenta" className="mb-6"><p className="text-sm">…</p></Disclosure>
+    <ul className="ac-grid" aria-label="Cuentas activas">
+      {F.accounts.filter((a) => a.status === "active").map((a) => <AccountItem key={a.id} a={a} />)}
+      <li className="ac-item"><NewAccountTile href="/cuentas?nuevo=1#nueva-cuenta" /></li>
+    </ul>
+    <section aria-labelledby="archived" className="mt-8">
+      <h2 id="archived" className="mb-3 section-title">Archivadas</h2>
+      <ul className="ac-grid">{F.accounts.filter((a) => a.status === "archived").map((a) => <AccountItem key={a.id} a={a} />)}</ul>
+    </section>
+  </>
+);
+const cuentasVacio = (
+  <>
+    <PageHeader title="Cuentas" description="Saldos = saldo inicial + movimientos. Cada moneda se totaliza por separado." />
+    <Disclosure id="nueva-cuenta" open summary="Nueva cuenta" className="mb-6"><p className="text-sm">…formulario…</p></Disclosure>
+    <EmptyState title="Aún no tienes cuentas" description="Crea tu primera cuenta con el formulario de arriba para empezar a registrar movimientos." />
   </>
 );
 
@@ -69,9 +89,37 @@ const movimientos = (
   </>
 );
 
+const loanHeader = (
+  <PageHeader
+    title="Préstamos y deudas"
+    description="Prestar no es un gasto ni pedir prestado es un ingreso: solo el interés cuenta como ingreso o gasto. Cada moneda se totaliza por separado."
+    actions={
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+        <Link href="#nuevo-prestamo" className="btn btn-primary">Presté dinero</Link>
+        <Link href="#nuevo-prestamo" className="btn btn-primary">Me prestaron</Link>
+      </div>
+    }
+  />
+);
+const prestamosNuevo = (
+  <>
+    {loanHeader}
+    <Disclosure id="nuevo-prestamo" open summary="Nuevo préstamo o deuda" className="mb-6 scroll-mt-20">
+      <ActionForm action={noop as never} submit="Registrar">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Tipo" id="ln-direction"><select id="ln-direction" defaultValue="receivable" className={inputCls}><Options items={[{ value: "receivable", label: "Presté dinero (me deben)" }, { value: "payable", label: "Me prestaron (debo)" }]} /></select></Field>
+          <Field label="Persona o entidad" id="ln-counterparty"><input id="ln-counterparty" className={inputCls} /></Field>
+          <Field label="Capital" id="ln-principal"><input id="ln-principal" placeholder="0.00" className={inputCls} /></Field>
+          <Field label="Moneda" id="ln-currency"><select id="ln-currency" className={inputCls}><Options items={[{ value: "DOP", label: "DOP (peso dominicano)" }, { value: "USD", label: "USD (dólar)" }]} /></select></Field>
+        </div>
+      </ActionForm>
+    </Disclosure>
+    <ul className="grid gap-3 lg:grid-cols-2">{F.loans.filter((l) => l.direction === "receivable").map((l) => <LoanCard key={l.id} l={l} />)}</ul>
+  </>
+);
 const prestamosList = (
   <>
-    <PageHeader title="Préstamos y deudas" description="Prestar no es un gasto ni pedir prestado es un ingreso: solo el interés cuenta como ingreso o gasto. Cada moneda se totaliza por separado." />
+    {loanHeader}
     <section aria-label="Resumen por moneda" className="mb-6 grid gap-3 sm:grid-cols-2">
       {CURRENCIES.map((c) => (
         <div key={c} className="card">
@@ -196,6 +244,20 @@ const login = (
       { name: "password", label: "Contraseña", type: "password", autoComplete: "current-password" }]} />
   </AuthCard>
 );
+const accesoDenegado = (
+  <AuthCard title="Acceso denegado">
+    <p className="mb-4 text-sm">Tu cuenta no es la propietaria de esta instalación de Auto-Bank, por lo que no puedes ver sus datos.</p>
+    <button type="button" className="btn btn-primary w-full">Cerrar sesión</button>
+  </AuthCard>
+);
+const registro = (
+  <AuthCard title="Crear cuenta propietaria">
+    <AuthForm action={noop as never} submit="Crear cuenta" pending="Creando…" fields={[
+      { name: "name", label: "Nombre", type: "text", autoComplete: "name" },
+      { name: "email", label: "Correo electrónico", type: "email", autoComplete: "email" },
+      { name: "password", label: "Contraseña", type: "password", autoComplete: "new-password" }]} />
+  </AuthCard>
+);
 const verificar = (
   <AuthCard title="Verifica tu correo">
     <Notice>Te enviamos un código de 6 dígitos por correo. Ingresa el código para activar la cuenta de propietario. Vence en unos minutos.</Notice>
@@ -204,10 +266,23 @@ const verificar = (
   </AuthCard>
 );
 
+const logoSheet = (
+  <div className="space-y-6 p-6">
+    <div className="flex flex-wrap items-center gap-6 rounded-xl bg-[#102a43] p-6"><Logo variant="mark" size={96} /><Logo variant="horizontal" size={64} /><Logo variant="horizontal" size={36} /><Logo variant="mark" size={32} /></div>
+    <div className="flex flex-wrap items-center gap-6 rounded-xl bg-white p-6"><Logo variant="mark" panel size={96} /><Logo variant="horizontal" panel size={64} /><Logo variant="horizontal" panel size={40} /><Logo variant="mark" panel size={32} /><Logo variant="mark" panel size={16} /></div>
+    <div className="flex justify-center"><Logo variant="full" size={420} /></div>
+  </div>
+);
+
 export const SCREENS: Screen[] = [
+  { name: "logo", path: "/overview", shell: false, node: logoSheet },
   { name: "overview", path: "/overview", shell: true, node: overview },
   { name: "overview-usd", path: "/overview", shell: true, node: overviewUsd },
   { name: "cuentas", path: "/cuentas", shell: true, node: cuentas },
+  { name: "loading-cuentas", path: "/cuentas", shell: true, node: <LoadingCuentas /> },
+  { name: "loading-overview", path: "/overview", shell: true, node: <LoadingOverview /> },
+  { name: "cuentas-vacio", path: "/cuentas", shell: true, node: cuentasVacio },
+  { name: "prestamos-nuevo", path: "/prestamos", shell: true, node: prestamosNuevo },
   { name: "movimientos", path: "/movimientos", shell: true, node: movimientos },
   { name: "prestamos", path: "/prestamos", shell: true, node: prestamosList },
   { name: "prestamo-detalle", path: "/prestamos", shell: true, node: prestamoDetalle },
@@ -218,6 +293,8 @@ export const SCREENS: Screen[] = [
   { name: "eddie", path: "/overview", shell: true, node: <>{overview}{eddie}</> },
   { name: "login", path: "/login", shell: false, node: login },
   { name: "verificar", path: "/verificar", shell: false, node: verificar },
+  { name: "acceso-denegado", path: "/acceso-denegado", shell: false, node: accesoDenegado },
+  { name: "registro", path: "/registro", shell: false, node: registro },
 ];
 export { AppShell };
 void range; void IncomeExpenseSection; void NetWorthSection; void ComparisonSection;

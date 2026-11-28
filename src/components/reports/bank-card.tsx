@@ -1,4 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight, Landmark, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import { formatMoney, type Currency } from "@/lib/money";
 
 /**
@@ -58,7 +59,7 @@ function contours() {
 const GUILLOCHE = guilloche();
 const CONTOURS = contours();
 
-function Chip({ id }: { id: string }) {
+export function Chip({ id }: { id: string }) {
   return (
     <svg className="bc-chip" viewBox="0 0 48 36" aria-hidden focusable="false">
       <defs>
@@ -78,7 +79,7 @@ function Chip({ id }: { id: string }) {
   );
 }
 
-function Contactless() {
+export function Contactless() {
   return (
     <svg className="bc-nfc" viewBox="0 0 24 24" aria-hidden focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
       <path d="M7 8.5a5 5 0 0 1 0 7" />
@@ -154,7 +155,7 @@ export function BankCard({ f }: { f: CardFigures }) {
         <span className="bc-sheen" aria-hidden />
         <div className="bc-body">
           <div className="bc-top">
-            <p className="bc-brand"><span className="bc-mark" aria-hidden>AB</span>Auto-Bank</p>
+            <p className="bc-brand"><Logo variant="mark" panel decorative size={28} className="bc-logo" />Auto-Bank</p>
             <p className="bc-cur"><span className="bc-code">{c}</span><span className="bc-name">{NAMES[c]}</span></p>
           </div>
           <div className="bc-mid">

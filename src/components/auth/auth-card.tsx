@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 
 export function AuthCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main id="contenido" className="grid min-h-dvh place-items-center bg-[radial-gradient(60rem_30rem_at_50%_-10%,var(--primary-soft),transparent)] px-4 py-8">
       <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center justify-center gap-3">
-          <span aria-hidden className="grid size-11 place-items-center rounded-xl bg-primary text-base font-bold text-on-primary">AB</span>
-          <span className="text-2xl font-bold tracking-tight">Auto-Bank</span>
+        <div className="mb-6 flex justify-center">
+          <Logo variant="horizontal" panel size={60} className="auth-logo" />
         </div>
         <div className="card !p-6 sm:!p-8 shadow-[var(--shadow-pop)]">
           <h1 className="mb-5 text-xl font-bold tracking-tight">{title}</h1>
